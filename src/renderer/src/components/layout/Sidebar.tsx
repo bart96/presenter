@@ -421,13 +421,19 @@ const Sidebar = forwardRef<SidebarHandle>((_, ref) => {
     }
   };
 
-  /** Returns true for files this sidebar can import (CCLI .txt or SongBeamer .sng). */
-  const isSupportedSongFile = (file: File): boolean =>
-    (file.type === 'text/plain' && file.name.endsWith('.txt')) || file.name.endsWith('.sng');
+  /** Extension check that ignores case — Windows happily hands over `LIED.SNG` or `Song.TXT`. */
+  const hasExtension = (file: File, ext: string): boolean => file.name.toLowerCase().endsWith(ext);
+  const isSngFile = (file: File): boolean => hasExtension(file, '.sng');
+
+  /**
+   * Returns true for files this sidebar can import (CCLI .txt or SongBeamer .sng). Decided by
+   * extension alone: the reported MIME type is empty or arbitrary for both depending on the
+   * OS, so requiring `text/plain` turned valid .txt files away.
+   */
+  const isSupportedSongFile = (file: File): boolean => hasExtension(file, '.txt') || isSngFile(file);
 
   /** Parse a supported song file into an ISong. */
-  const parseSongFile = (file: File, content: string): ISong =>
-    file.name.endsWith('.sng') ? SngSong(content) : CCLISong(file.name, content);
+  const parseSongFile = (file: File, content: string): ISong => (isSngFile(file) ? SngSong(content) : CCLISong(file.name, content));
 
   /** Read and import a single supported song file into the store. */
   const importSongFile = (file: File) => {
@@ -462,7 +468,7 @@ const Sidebar = forwardRef<SidebarHandle>((_, ref) => {
         dispatch(addToSongsOrder(savedSong.songNumber));
         dispatch(addShowItem({ type: 'song', songNumber: savedSong.songNumber, order: 'Default' }));
         trackEvent('song_imported', 'song', String(result.songNumber), {
-          source: file.name.endsWith('.sng') ? 'sng' : 'ccli_txt',
+          source: isSngFile(file) ? 'sng' : 'ccli_txt',
         });
       } catch (err) {
         console.error('Failed to upload imported song:', err);
@@ -481,7 +487,7 @@ const Sidebar = forwardRef<SidebarHandle>((_, ref) => {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const utf8Result = ev.target?.result?.toString() ?? '';
-      if (utf8Result.includes('\uFFFD') && file.name.endsWith('.sng')) {
+      if (utf8Result.includes('\uFFFD') && isSngFile(file)) {
         // Re-read with Windows-1252 encoding fallback
         const fallbackReader = new FileReader();
         fallbackReader.onload = (ev2) => void doImport(ev2.target?.result?.toString() ?? '');

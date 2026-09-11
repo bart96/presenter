@@ -1916,15 +1916,15 @@ type RootTranslation = {
 		 */
 		EMPTY_HINT_ADD: string
 		/**
-		 * o​r​ ​d​r​a​g​ ​&​ ​d​r​o​p​ ​C​C​L​I​ ​s​o​n​g​ ​f​i​l​e​s​ ​h​e​r​e​ ​t​o​ ​g​e​t​ ​s​t​a​r​t​e​d​.
+		 * o​r​ ​d​r​a​g​ ​&​ ​d​r​o​p​ ​C​C​L​I​ ​(​.​t​x​t​)​ ​o​r​ ​S​o​n​g​B​e​a​m​e​r​ ​(​.​s​n​g​)​ ​s​o​n​g​ ​f​i​l​e​s​ ​h​e​r​e​ ​t​o​ ​g​e​t​ ​s​t​a​r​t​e​d​.
 		 */
 		EMPTY_HINT_CCLI: string
 		/**
-		 * L​o​a​d​ ​a​ ​s​h​o​w​,​ ​s​e​a​r​c​h​ ​f​o​r​ ​s​o​n​g​s​,​ ​o​r​ ​d​r​a​g​ ​&​ ​d​r​o​p​ ​C​C​L​I​ ​s​o​n​g​ ​f​i​l​e​s​ ​h​e​r​e​ ​t​o​ ​g​e​t​ ​s​t​a​r​t​e​d​.
+		 * L​o​a​d​ ​a​ ​s​h​o​w​,​ ​s​e​a​r​c​h​ ​f​o​r​ ​s​o​n​g​s​,​ ​o​r​ ​d​r​a​g​ ​&​ ​d​r​o​p​ ​C​C​L​I​ ​(​.​t​x​t​)​ ​o​r​ ​S​o​n​g​B​e​a​m​e​r​ ​(​.​s​n​g​)​ ​s​o​n​g​ ​f​i​l​e​s​ ​h​e​r​e​ ​t​o​ ​g​e​t​ ​s​t​a​r​t​e​d​.
 		 */
 		EMPTY_HINT_BODY: string
 		/**
-		 * C​l​i​c​k​ ​o​r​ ​d​r​o​p​ ​.​t​x​t​ ​s​o​n​g​ ​f​i​l​e​s​ ​h​e​r​e
+		 * C​l​i​c​k​ ​o​r​ ​d​r​o​p​ ​.​t​x​t​ ​o​r​ ​.​s​n​g​ ​s​o​n​g​ ​f​i​l​e​s​ ​h​e​r​e
 		 */
 		EMPTY_HINT_DROP: string
 		/**
@@ -9243,15 +9243,15 @@ export type TranslationFunctions = {
 		 */
 		EMPTY_HINT_ADD: () => LocalizedString
 		/**
-		 * or drag & drop CCLI song files here to get started.
+		 * or drag & drop CCLI (.txt) or SongBeamer (.sng) song files here to get started.
 		 */
 		EMPTY_HINT_CCLI: () => LocalizedString
 		/**
-		 * Load a show, search for songs, or drag & drop CCLI song files here to get started.
+		 * Load a show, search for songs, or drag & drop CCLI (.txt) or SongBeamer (.sng) song files here to get started.
 		 */
 		EMPTY_HINT_BODY: () => LocalizedString
 		/**
-		 * Click or drop .txt song files here
+		 * Click or drop .txt or .sng song files here
 		 */
 		EMPTY_HINT_DROP: () => LocalizedString
 		/**

@@ -509,9 +509,10 @@ const de: Translation = {
     EMPTY_HINT_SEARCH: 'Lieder suchen',
     EMPTY_HINT_OR: 'oder',
     EMPTY_HINT_ADD: 'Elemente hinzufügen',
-    EMPTY_HINT_CCLI: 'oder CCLI-Songdateien hier hineinziehen.',
-    EMPTY_HINT_BODY: 'Lade eine Show, suche nach Liedern oder ziehe CCLI-Songdateien hier herein, um zu beginnen.',
-    EMPTY_HINT_DROP: '.txt-Songdateien hier klicken oder ablegen',
+    EMPTY_HINT_CCLI: 'oder CCLI- (.txt) bzw. SongBeamer-Songdateien (.sng) hier hineinziehen.',
+    EMPTY_HINT_BODY:
+      'Lade eine Show, suche nach Liedern oder ziehe CCLI- (.txt) bzw. SongBeamer-Songdateien (.sng) hier herein, um zu beginnen.',
+    EMPTY_HINT_DROP: '.txt- oder .sng-Songdateien hier klicken oder ablegen',
     SONG_UPDATED: 'Dieser Song wurde auf dem Server geändert — klicken, um die Änderungen zu laden',
     SONG_UPDATE_APPLIED: 'Song aktualisiert',
     RENAME: 'Umbenennen',
