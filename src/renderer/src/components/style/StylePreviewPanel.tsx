@@ -19,7 +19,14 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import { useI18nContext } from '@/i18n/i18n-react';
 import type { StyleData } from '@/api/styles.api';
-import { DEFAULT_STYLE, mergeStyles, resolveStyleData, styleToContainerCss, styleToTextCss } from '@/utils/styleUtils';
+import {
+  DEFAULT_STYLE,
+  mergeStyles,
+  resolveNextLinePreview,
+  resolveStyleData,
+  styleToContainerCss,
+  styleToTextCss,
+} from '@/utils/styleUtils';
 import { languageEntryCss, previewSlotStyles, splitSampleAtSeparator, usePreviewScale } from '@/components/style/styleFormUtils';
 import { MAIN_LANGUAGE_SLOT } from '@/utils/languageSlots';
 import { resolveMediaUrl } from '@/utils/mediaUrl';
@@ -128,7 +135,7 @@ export const StylePreviewPanel = ({
   onToggleExpanded?: () => void;
 }) => {
   const { LL } = useI18nContext();
-  const { stylePreview } = useGetSettings();
+  const { stylePreview, nextLinePreview: nextLinePreviewDefault } = useGetSettings();
   const updateSetting = useUpdateSetting();
 
   const [previewImageHidden, setPreviewImageHidden] = useState(false);
@@ -217,7 +224,7 @@ export const StylePreviewPanel = ({
 
     const build = (pick: 'current' | 'next', keyPrefix: string) => {
       const lineCount = Math.max(0, ...halves.map((half) => half[pick].length));
-      const rows: { key: string; css: typeof previewMainCss; text: string }[] = [];
+      const rows: { key: string; css: typeof previewMainCss; text: string; slot: number }[] = [];
 
       for (let line = 0; line < lineCount; line++) {
         for (const { slot, css } of allSlots) {
@@ -225,7 +232,7 @@ export const StylePreviewPanel = ({
           // a style with four slots would silently render three and look like a bug.
           const half = halves[slot - 1];
           const text = half?.[pick][line] ?? (line === 0 && pick === 'current' ? LL.STYLE.SLOT_LABEL({ n: slot }) : '');
-          if (text) rows.push({ key: `${keyPrefix}-${slot}-${line}`, css, text });
+          if (text) rows.push({ key: `${keyPrefix}-${slot}-${line}`, css, text, slot });
         }
       }
 
@@ -547,26 +554,60 @@ export const StylePreviewPanel = ({
                 </Typography>
               ))}
 
-              {id === 'sample' && nextRows.length > 0 && (
-                <Stack sx={{ width: '100%', mt: 1 }}>
-                  {nextRows.map((row) => (
-                    <Typography
-                      key={row.key}
+              {id === 'sample' &&
+                nextRows.length > 0 &&
+                (() => {
+                  // The same decision, defaults and layout as the presentation (see NextBlockPreview), so
+                  // the preview never shows a strip the screen will not. It used to draw one even when
+                  // switched off, and at a hard-coded 70% size the presentation never used.
+                  const preview = resolveNextLinePreview(resolvedPreview, nextLinePreviewDefault);
+                  if (!preview.enabled) return null;
+                  const pinned = preview.position === 'bottom';
+
+                  const strip = (
+                    <Stack
                       sx={{
-                        ...previewTextCss,
-                        // The real next-block strip is smaller than the lyrics it follows.
-                        fontSize: `calc(${previewTextCss.fontSize || '2vh'} * 0.7)`,
-                        ...row.css,
-                        color: resolvedPreview.nextLinePreviewColor || row.css.color || previewMainCss.color,
-                        opacity: resolvedPreview.nextLinePreviewOpacity ?? 0.55,
                         width: '100%',
+                        opacity: preview.opacity,
+                        ...(!pinned && preview.spacing ? { marginTop: scaleLength(preview.spacing) } : {}),
                       }}
                     >
-                      {row.text}
-                    </Typography>
-                  ))}
-                </Stack>
-              )}
+                      {nextRows.map((row) => (
+                        <Typography
+                          key={row.key}
+                          sx={{
+                            ...previewTextCss,
+                            ...row.css,
+                            ...(row.slot !== MAIN_LANGUAGE_SLOT ? { fontStyle: 'italic' } : {}),
+                            ...(preview.fontSize ? { fontSize: scaleLength(preview.fontSize) } : {}),
+                            ...(preview.textAlign ? { textAlign: preview.textAlign } : {}),
+                            color: preview.color,
+                            width: '100%',
+                          }}
+                        >
+                          {row.text}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  );
+
+                  return pinned ? (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        bottom: preview.spacing ? scaleLength(preview.spacing) : 0,
+                        padding: previewPadding || 0,
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      {strip}
+                    </Box>
+                  ) : (
+                    strip
+                  );
+                })()}
             </Stack>
 
             {id === 'copyright' && (

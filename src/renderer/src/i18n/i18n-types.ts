@@ -272,6 +272,14 @@ type RootTranslation = {
 		 */
 		SESSION_EXPIRED: string
 		/**
+		 * T​h​e​ ​s​e​r​v​e​r​ ​d​i​d​ ​n​o​t​ ​a​c​c​e​p​t​ ​t​h​e​ ​s​i​g​n​-​i​n
+		 */
+		LOGIN_REJECTED: string
+		/**
+		 * T​h​e​ ​a​u​t​o​m​a​t​i​c​ ​s​i​g​n​-​i​n​ ​d​i​d​ ​n​o​t​ ​c​o​m​p​l​e​t​e​,​ ​s​o​ ​i​t​ ​w​a​s​ ​n​o​t​ ​t​r​i​e​d​ ​a​g​a​i​n​.​ ​P​l​e​a​s​e​ ​l​o​g​ ​i​n​ ​m​a​n​u​a​l​l​y​.
+		 */
+		AUTO_LOGIN_STOPPED: string
+		/**
 		 * L​i​c​e​n​s​e
 		 */
 		LICENSE: string
@@ -2487,6 +2495,64 @@ type RootTranslation = {
 		 */
 		PARAGRAPH_PADDING: string
 		/**
+		 * U​n​i​t
+		 */
+		UNIT: string
+		UNIT_HINTS: {
+			/**
+			 * p​i​x​e​l​s​ ​—​ ​t​h​e​ ​s​a​m​e​ ​f​i​x​e​d​ ​s​i​z​e​ ​o​n​ ​e​v​e​r​y​ ​s​c​r​e​e​n
+			 */
+			PX: string
+			/**
+			 * p​o​i​n​t​s​ ​—​ ​f​i​x​e​d​ ​s​i​z​e​ ​a​s​ ​i​n​ ​a​ ​w​o​r​d​ ​p​r​o​c​e​s​s​o​r​ ​(​1​p​t​ ​≈​ ​1​.​3​3​p​x​)
+			 */
+			PT: string
+			/**
+			 * r​e​l​a​t​i​v​e​ ​t​o​ ​t​h​e​ ​t​e​x​t​'​s​ ​o​w​n​ ​f​o​n​t​ ​s​i​z​e
+			 */
+			EM: string
+			/**
+			 * r​e​l​a​t​i​v​e​ ​t​o​ ​t​h​e​ ​p​a​g​e​'​s​ ​b​a​s​e​ ​f​o​n​t​ ​s​i​z​e
+			 */
+			REM: string
+			/**
+			 * %​ ​o​f​ ​t​h​e​ ​s​c​r​e​e​n​ ​h​e​i​g​h​t​ ​—​ ​s​c​a​l​e​s​ ​w​i​t​h​ ​t​h​e​ ​w​i​n​d​o​w
+			 */
+			VH: string
+			/**
+			 * %​ ​o​f​ ​t​h​e​ ​s​c​r​e​e​n​ ​w​i​d​t​h​ ​—​ ​s​c​a​l​e​s​ ​w​i​t​h​ ​t​h​e​ ​w​i​n​d​o​w
+			 */
+			VW: string
+			/**
+			 * %​ ​o​f​ ​t​h​e​ ​s​h​o​r​t​e​r​ ​s​c​r​e​e​n​ ​s​i​d​e
+			 */
+			VMIN: string
+			/**
+			 * %​ ​o​f​ ​t​h​e​ ​l​o​n​g​e​r​ ​s​c​r​e​e​n​ ​s​i​d​e
+			 */
+			VMAX: string
+			/**
+			 * %​ ​o​f​ ​t​h​e​ ​s​u​r​r​o​u​n​d​i​n​g​ ​b​o​x​ ​(​f​o​r​ ​p​a​d​d​i​n​g​:​ ​o​f​ ​i​t​s​ ​w​i​d​t​h​)
+			 */
+			PERCENT: string
+		}
+		/**
+		 * T​o​p
+		 */
+		VERTICAL_ALIGN_TOP: string
+		/**
+		 * C​e​n​t​e​r
+		 */
+		VERTICAL_ALIGN_CENTER: string
+		/**
+		 * B​o​t​t​o​m
+		 */
+		VERTICAL_ALIGN_BOTTOM: string
+		/**
+		 * N​o​n​e
+		 */
+		TRANSFORM_NONE: string
+		/**
 		 * T​e​x​t
 		 */
 		TEXT: string
@@ -2562,6 +2628,46 @@ type RootTranslation = {
 		 * O​p​a​c​i​t​y
 		 */
 		NEXT_LINE_OPACITY: string
+		/**
+		 * S​i​z​e
+		 */
+		NEXT_LINE_SIZE: string
+		/**
+		 * s​a​m​e​ ​a​s​ ​l​y​r​i​c​s
+		 */
+		NEXT_LINE_SIZE_SAME: string
+		/**
+		 * U​s​e​ ​t​h​e​ ​l​y​r​i​c​s​ ​s​i​z​e​ ​a​g​a​i​n
+		 */
+		NEXT_LINE_SIZE_RESET: string
+		/**
+		 * P​o​s​i​t​i​o​n
+		 */
+		NEXT_LINE_POSITION: string
+		/**
+		 * B​e​l​o​w​ ​l​y​r​i​c​s
+		 */
+		NEXT_LINE_POSITION_BELOW: string
+		/**
+		 * B​o​t​t​o​m​ ​e​d​g​e
+		 */
+		NEXT_LINE_POSITION_BOTTOM: string
+		/**
+		 * D​i​s​t​a​n​c​e
+		 */
+		NEXT_LINE_SPACING: string
+		/**
+		 * G​a​p​ ​t​o​ ​t​h​e​ ​l​y​r​i​c​s​ ​—​ ​o​r​ ​t​o​ ​t​h​e​ ​b​o​t​t​o​m​ ​e​d​g​e​ ​w​h​e​n​ ​p​i​n​n​e​d​ ​t​h​e​r​e
+		 */
+		NEXT_LINE_SPACING_HINT: string
+		/**
+		 * A​l​i​g​n​m​e​n​t
+		 */
+		NEXT_LINE_ALIGN: string
+		/**
+		 * W​i​t​h​ ​n​o​t​h​i​n​g​ ​s​e​l​e​c​t​e​d​ ​i​t​ ​f​o​l​l​o​w​s​ ​t​h​e​ ​l​y​r​i​c​s
+		 */
+		NEXT_LINE_ALIGN_HINT: string
 		/**
 		 * S​h​o​w​ ​l​a​n​g​u​a​g​e​s​ ​b​e​y​o​n​d​ ​t​h​o​s​e​ ​c​o​n​f​i​g​u​r​e​d
 		 */
@@ -7687,6 +7793,14 @@ export type TranslationFunctions = {
 		 */
 		SESSION_EXPIRED: () => LocalizedString
 		/**
+		 * The server did not accept the sign-in
+		 */
+		LOGIN_REJECTED: () => LocalizedString
+		/**
+		 * The automatic sign-in did not complete, so it was not tried again. Please log in manually.
+		 */
+		AUTO_LOGIN_STOPPED: () => LocalizedString
+		/**
 		 * License
 		 */
 		LICENSE: () => LocalizedString
@@ -9813,6 +9927,64 @@ export type TranslationFunctions = {
 		 */
 		PARAGRAPH_PADDING: () => LocalizedString
 		/**
+		 * Unit
+		 */
+		UNIT: () => LocalizedString
+		UNIT_HINTS: {
+			/**
+			 * pixels — the same fixed size on every screen
+			 */
+			PX: () => LocalizedString
+			/**
+			 * points — fixed size as in a word processor (1pt ≈ 1.33px)
+			 */
+			PT: () => LocalizedString
+			/**
+			 * relative to the text's own font size
+			 */
+			EM: () => LocalizedString
+			/**
+			 * relative to the page's base font size
+			 */
+			REM: () => LocalizedString
+			/**
+			 * % of the screen height — scales with the window
+			 */
+			VH: () => LocalizedString
+			/**
+			 * % of the screen width — scales with the window
+			 */
+			VW: () => LocalizedString
+			/**
+			 * % of the shorter screen side
+			 */
+			VMIN: () => LocalizedString
+			/**
+			 * % of the longer screen side
+			 */
+			VMAX: () => LocalizedString
+			/**
+			 * % of the surrounding box (for padding: of its width)
+			 */
+			PERCENT: () => LocalizedString
+		}
+		/**
+		 * Top
+		 */
+		VERTICAL_ALIGN_TOP: () => LocalizedString
+		/**
+		 * Center
+		 */
+		VERTICAL_ALIGN_CENTER: () => LocalizedString
+		/**
+		 * Bottom
+		 */
+		VERTICAL_ALIGN_BOTTOM: () => LocalizedString
+		/**
+		 * None
+		 */
+		TRANSFORM_NONE: () => LocalizedString
+		/**
 		 * Text
 		 */
 		TEXT: () => LocalizedString
@@ -9888,6 +10060,46 @@ export type TranslationFunctions = {
 		 * Opacity
 		 */
 		NEXT_LINE_OPACITY: () => LocalizedString
+		/**
+		 * Size
+		 */
+		NEXT_LINE_SIZE: () => LocalizedString
+		/**
+		 * same as lyrics
+		 */
+		NEXT_LINE_SIZE_SAME: () => LocalizedString
+		/**
+		 * Use the lyrics size again
+		 */
+		NEXT_LINE_SIZE_RESET: () => LocalizedString
+		/**
+		 * Position
+		 */
+		NEXT_LINE_POSITION: () => LocalizedString
+		/**
+		 * Below lyrics
+		 */
+		NEXT_LINE_POSITION_BELOW: () => LocalizedString
+		/**
+		 * Bottom edge
+		 */
+		NEXT_LINE_POSITION_BOTTOM: () => LocalizedString
+		/**
+		 * Distance
+		 */
+		NEXT_LINE_SPACING: () => LocalizedString
+		/**
+		 * Gap to the lyrics — or to the bottom edge when pinned there
+		 */
+		NEXT_LINE_SPACING_HINT: () => LocalizedString
+		/**
+		 * Alignment
+		 */
+		NEXT_LINE_ALIGN: () => LocalizedString
+		/**
+		 * With nothing selected it follows the lyrics
+		 */
+		NEXT_LINE_ALIGN_HINT: () => LocalizedString
 		/**
 		 * Show languages beyond those configured
 		 */

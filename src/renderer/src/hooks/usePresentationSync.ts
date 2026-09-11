@@ -4,7 +4,14 @@ import { selectCurrentSongOrder, useGetSongs } from '@/store/songsSlice';
 import { broadcastContent, getOpenWindowsSync, invalidateSentContentCache, setWindowStyleResolver } from '@/utils/presentationBridge';
 import { SONG_TRANSLATION_LINE_REGEX, inferSongLanguages, resolvePrimaryLanguage } from '@/song';
 import type { ContentType, PresentationBlock, PresentationContent, PresentationLine } from '@/presentation/types';
-import { DEFAULT_STYLE, mergeStyles, type ResolvedStyle, resolveStyleCascade, resolveStyleData } from '@/utils/styleUtils';
+import {
+  DEFAULT_STYLE,
+  mergeStyles,
+  type ResolvedStyle,
+  resolveNextLinePreview,
+  resolveStyleCascade,
+  resolveStyleData,
+} from '@/utils/styleUtils';
 import { useGetStylesQuery } from '@/api/styles.api';
 import { resolveMediaUrl } from '@/utils/mediaUrl';
 import { useUpdateSetting, useGetSettings } from '@/store/settingsSlice';
@@ -654,8 +661,8 @@ export const usePresentationSync = (): void => {
       const nav = navStateRef.current;
       const cb = broadcastRef.current;
 
-      // Compute next-block preview lines — style.nextLinePreview overrides global setting
-      const showNextLinePreview = cb.style.nextLinePreview !== undefined ? cb.style.nextLinePreview : cb.nextLinePreview;
+      // Compute next-block preview lines — the style decides, the global setting is only the fallback
+      const showNextLinePreview = resolveNextLinePreview(cb.style, cb.nextLinePreview).enabled;
       let nextBlockPreviewLines: PresentationLine[] | undefined;
       if (showNextLinePreview && cb.blocks.length > 0 && cb.contentType === 'song') {
         const nextBlockIndex = nav.activeBlockIndex + 1;

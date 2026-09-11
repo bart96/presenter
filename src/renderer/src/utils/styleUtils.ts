@@ -1,5 +1,5 @@
 import type { LanguageStyleEntry, StyleData, StyleEntity } from '@/api/styles.api';
-import { normaliseLanguageEntries } from '@/utils/languageSlots';
+import { MAIN_LANGUAGE_SLOT, entryForSlot, normaliseLanguageEntries } from '@/utils/languageSlots';
 import type { CSSProperties } from 'react';
 
 /**
@@ -383,6 +383,49 @@ export function styleToTextCss(style: ResolvedStyle): CSSProperties {
 
   return css;
 }
+
+/** Color of the next-block preview when no style sets one. */
+export const DEFAULT_NEXT_LINE_COLOR = '#AAAAAA';
+/** Opacity of the next-block preview when no style sets one. */
+export const DEFAULT_NEXT_LINE_OPACITY = 0.6;
+
+/**
+ * Whether the next-block preview is shown, and how it looks.
+ *
+ * The style editor edits it on the main language slot, and that slot only has a say once its
+ * row is switched on — so an untouched style still falls back to what older styles stored at
+ * the top level, and then to `globalDefault`. Reading only the top-level fields, as the
+ * presentation used to, made the editor's switch do nothing at all.
+ */
+export function resolveNextLinePreview(
+  style: ResolvedStyle,
+  globalDefault: boolean,
+): NextLinePreviewLayout & { enabled: boolean; color: string; opacity: number } {
+  const main = entryForSlot(style.languageStyles, MAIN_LANGUAGE_SLOT);
+  const slot = main?.nextLinePreviewEnabled ? main : undefined;
+
+  return {
+    enabled: slot ? slot.nextLinePreview === true : (style.nextLinePreview ?? globalDefault),
+    color: slot?.nextLinePreviewColor ?? style.nextLinePreviewColor ?? DEFAULT_NEXT_LINE_COLOR,
+    opacity: slot?.nextLinePreviewOpacity ?? style.nextLinePreviewOpacity ?? DEFAULT_NEXT_LINE_OPACITY,
+    position: slot?.nextLinePreviewPosition ?? 'below',
+    fontSize: slot?.nextLinePreviewFontSize,
+    spacing: slot?.nextLinePreviewSpacing,
+    textAlign: slot?.nextLinePreviewTextAlign,
+  };
+}
+
+/** How the next-block preview is laid out. Every field but `position` is absent unless the style sets it. */
+export type NextLinePreviewLayout = {
+  /** Right below the lyrics, or pinned to the bottom edge of the slide. */
+  position: 'below' | 'bottom';
+  /** Absent: the same size as the lyrics. */
+  fontSize?: string;
+  /** Gap to the lyrics — or to the bottom edge when pinned. */
+  spacing?: string;
+  /** Absent: the lyrics' alignment. */
+  textAlign?: 'left' | 'center' | 'right';
+};
 
 /**
  * Default presentation style used when no styles are configured.

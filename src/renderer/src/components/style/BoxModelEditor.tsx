@@ -1,7 +1,9 @@
-import { Box, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { useState } from 'react';
+import { Box, IconButton, InputBase, MenuItem, Select, Stack, Tooltip, Typography } from '@mui/material';
 import { RestartAlt as ResetIcon } from '@mui/icons-material';
 import { useI18nContext } from '@/i18n/i18n-react';
 import { formatBoxShorthand, parseBoxShorthand, type BoxSides } from '@/utils/cssBox';
+import { CSS_UNITS, cssUnitHint, splitLength, stepValue, type CssUnit } from '@/components/style/cssUnits';
 
 /** One nesting level of the box: the slide's own padding, or the padding around a paragraph. */
 export type BoxLayer = {
@@ -16,10 +18,17 @@ export type BoxLayer = {
   placeholder: string;
 };
 
+/** The unit a side starts in when neither it nor the value it inherits names one. */
+const FALLBACK_UNIT: CssUnit = 'vh';
+const PLAIN_NUMBER = /^-?\d*\.?\d+$/;
+
 /**
- * One side of one box. Deliberately a plain text field rather than a value-plus-unit pair: a
- * box model is read at a glance, and eight dropdowns would bury the shape it is meant to show.
- * Any CSS length can still be typed, including `vh`, `%` and `px`.
+ * One side of one box: its number and its unit, each in a control of its own.
+ *
+ * Arrow up/down step the number (see `keyboardStep`) and apply at once, so the preview follows
+ * while the key is held. A typed value is committed on blur or Enter instead, so a half-typed
+ * number is never written into the style. Something that is not a plain length — `auto`,
+ * `calc(...)` — can still be typed into the number field and is kept exactly as typed.
  */
 const SideInput = ({
   value,
@@ -27,43 +36,127 @@ const SideInput = ({
   dimmed,
   onCommit,
 }: {
+  /** The side's own value; empty when the style does not set this box. */
   value: string;
+  /** The inherited value shown behind an empty side. */
   placeholder: string;
   dimmed: boolean;
   onCommit: (next: string) => void;
-}) => (
-  <TextField
-    size="small"
-    variant="standard"
-    defaultValue={value}
-    placeholder={placeholder}
-    // Committed on blur and Enter rather than per keystroke, so a half-typed "1v" is never
-    // written into the style and echoed back as a broken length.
-    onBlur={(event) => onCommit(event.target.value)}
-    onKeyDown={(event) => {
-      if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
-    }}
-    slotProps={{
-      input: { disableUnderline: true },
-      htmlInput: { style: { textAlign: 'center', fontFamily: 'monospace', fontSize: '0.7rem', padding: '2px 0' } },
-    }}
-    sx={{ width: 54, opacity: dimmed ? 0.55 : 1, '& .MuiInputBase-root': { bgcolor: 'background.default', borderRadius: 0.5 } }}
-  />
-);
+}) => {
+  const { LL } = useI18nContext();
+  /** What is being typed, until it is committed. Null while the field shows the stored value. */
+  const [draft, setDraft] = useState<string | null>(null);
 
-/** A single nesting level, drawn as a labelled frame with one input per side. */
+  const own = splitLength(value);
+  const inherited = splitLength(placeholder);
+  const unit: CssUnit = own?.unit ?? inherited?.unit ?? FALLBACK_UNIT;
+  const custom = value.trim() !== '' && !own && !PLAIN_NUMBER.test(value.trim());
+  const shown = draft ?? (own ? String(own.num) : value.trim());
+
+  /** The number to step or re-unit from: what is typed, else the stored value, else the inherited one. */
+  const currentNumber = (): number => {
+    const typed = draft?.trim() ?? '';
+    if (PLAIN_NUMBER.test(typed)) return parseFloat(typed);
+    const typedLength = splitLength(typed);
+    if (typedLength) return typedLength.num;
+    return own?.num ?? inherited?.num ?? 0;
+  };
+
+  const commitTyped = (text: string) => {
+    setDraft(null);
+    const trimmed = text.trim();
+    if (trimmed === '') onCommit(`0${unit}`);
+    else onCommit(PLAIN_NUMBER.test(trimmed) ? `${trimmed}${unit}` : trimmed);
+  };
+
+  const step = (direction: 1 | -1) => {
+    const typedUnit = draft ? splitLength(draft)?.unit : undefined;
+    const stepUnit = typedUnit ?? unit;
+    // Padding cannot be negative — CSS ignores the whole declaration if it is.
+    const next = Math.max(0, stepValue(currentNumber(), stepUnit, direction));
+    setDraft(null);
+    onCommit(`${next}${stepUnit}`);
+  };
+
+  const changeUnit = (nextUnit: CssUnit) => {
+    const num = currentNumber();
+    setDraft(null);
+    onCommit(`${num}${nextUnit}`);
+  };
+
+  return (
+    <Stack
+      direction="row"
+      sx={{ alignItems: 'center', bgcolor: 'background.default', borderRadius: 0.5, opacity: dimmed ? 0.55 : 1, pl: 0.5 }}
+    >
+      <InputBase
+        value={shown}
+        placeholder={inherited ? String(inherited.num) : placeholder}
+        onChange={(event) => setDraft(event.target.value)}
+        // Only a real edit is committed: tabbing through an inherited side must not switch the
+        // padding on with the values it happened to show.
+        onBlur={() => {
+          if (draft !== null) commitTyped(draft);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            (event.target as HTMLInputElement).blur();
+          } else if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && !custom) {
+            event.preventDefault();
+            step(event.key === 'ArrowUp' ? 1 : -1);
+          }
+        }}
+        inputProps={{ style: { textAlign: 'right', fontFamily: 'monospace', fontSize: '0.7rem', padding: '2px 0' } }}
+        sx={{ width: 34 }}
+      />
+      <Select
+        value={custom ? '' : unit}
+        displayEmpty
+        disabled={custom}
+        onChange={(event) => changeUnit(event.target.value as CssUnit)}
+        input={<InputBase />}
+        renderValue={(selected) => selected || '—'}
+        inputProps={{ 'aria-label': LL.STYLE.UNIT() }}
+        sx={{
+          fontSize: '0.65rem',
+          fontFamily: 'monospace',
+          color: 'text.secondary',
+          '& .MuiSelect-select': { py: '2px', pl: 0.25, pr: '16px !important' },
+          '& .MuiSelect-icon': { fontSize: 14, right: 0 },
+        }}
+      >
+        {CSS_UNITS.map((option) => (
+          <MenuItem key={option} value={option} dense sx={{ gap: 1.5 }}>
+            <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 600, minWidth: 34 }}>
+              {option}
+            </Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {cssUnitHint(LL, option)}
+            </Typography>
+          </MenuItem>
+        ))}
+      </Select>
+    </Stack>
+  );
+};
+
+/** A single nesting level, drawn as a labelled frame with one value-and-unit input per side. */
 const Layer = ({ layer, tint, children }: { layer: BoxLayer; tint: string; children: React.ReactNode }) => {
   const { LL } = useI18nContext();
   const sides = parseBoxShorthand(layer.enabled ? layer.value : '', '');
   const inherited = parseBoxShorthand(layer.placeholder, '0');
 
   // Editing any side writes the whole shorthand back, and turns the property on: reaching for a
-  // value is the same gesture as deciding to set it.
+  // value is the same gesture as deciding to set it. The other sides start from what applies now.
   const setSide = (side: keyof BoxSides, next: string) => {
-    const merged = { ...parseBoxShorthand(layer.enabled ? layer.value : layer.placeholder, '0'), [side]: next || '0' };
+    const merged = { ...parseBoxShorthand(layer.enabled ? layer.value : layer.placeholder, '0'), [side]: next };
     const shorthand = formatBoxShorthand(merged);
     if (shorthand !== layer.value || !layer.enabled) layer.onChange(shorthand);
   };
+
+  const sideInput = (side: keyof BoxSides) => (
+    <SideInput value={sides[side]} placeholder={inherited[side]} dimmed={!layer.enabled} onCommit={(next) => setSide(side, next)} />
+  );
 
   return (
     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: tint, p: 0.75, pt: 0.25, position: 'relative' }}>
@@ -91,39 +184,15 @@ const Layer = ({ layer, tint, children }: { layer: BoxLayer; tint: string; child
         }}
       >
         <Box />
-        <SideInput
-          key={`top-${layer.enabled}-${sides.top}`}
-          value={sides.top}
-          placeholder={inherited.top}
-          dimmed={!layer.enabled}
-          onCommit={(next) => setSide('top', next)}
-        />
+        {sideInput('top')}
         <Box />
 
-        <SideInput
-          key={`left-${layer.enabled}-${sides.left}`}
-          value={sides.left}
-          placeholder={inherited.left}
-          dimmed={!layer.enabled}
-          onCommit={(next) => setSide('left', next)}
-        />
+        {sideInput('left')}
         <Box sx={{ width: '100%' }}>{children}</Box>
-        <SideInput
-          key={`right-${layer.enabled}-${sides.right}`}
-          value={sides.right}
-          placeholder={inherited.right}
-          dimmed={!layer.enabled}
-          onCommit={(next) => setSide('right', next)}
-        />
+        {sideInput('right')}
 
         <Box />
-        <SideInput
-          key={`bottom-${layer.enabled}-${sides.bottom}`}
-          value={sides.bottom}
-          placeholder={inherited.bottom}
-          dimmed={!layer.enabled}
-          onCommit={(next) => setSide('bottom', next)}
-        />
+        {sideInput('bottom')}
         <Box />
       </Box>
     </Box>

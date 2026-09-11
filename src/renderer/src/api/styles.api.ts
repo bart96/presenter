@@ -34,6 +34,14 @@ export interface LanguageStyleEntry {
   nextLinePreview?: boolean;
   nextLinePreviewColor?: string;
   nextLinePreviewOpacity?: number;
+  /** Font size of the preview lines. Absent means the same size as the lyrics. */
+  nextLinePreviewFontSize?: string;
+  /** Right below the lyrics, or pinned to the bottom edge of the slide. Absent means below. */
+  nextLinePreviewPosition?: 'below' | 'bottom';
+  /** Gap to the lyrics — or to the bottom edge when pinned there. */
+  nextLinePreviewSpacing?: string;
+  /** Alignment of the preview lines. Absent means the lyrics' alignment. */
+  nextLinePreviewTextAlign?: 'left' | 'center' | 'right';
 }
 
 export type StyleData = {

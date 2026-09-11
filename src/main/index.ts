@@ -437,14 +437,33 @@ const createWindow = () => {
 
       const exchangeWin = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true } });
 
+      // Where the exchange ends decides where the app goes. The backend reports a rejected login
+      // by redirecting to its /unauthorized page — which nobody sees in this hidden window. Opening
+      // the app anyway found no session and went back to the login page, and that signed straight
+      // in again: a login screen flashing in an endless loop. A rejection therefore returns to the
+      // login page carrying the reason, which also stops the automatic sign-in there.
       exchangeWin.webContents.on('did-finish-load', () => {
-        mainWindow!.loadFile(htmlFile);
+        let error: string | null = null;
+        try {
+          const landed = new URL(exchangeWin.webContents.getURL());
+          if (landed.pathname.replace(/\/+$/, '').endsWith('/unauthorized')) {
+            error = landed.searchParams.get('error') || 'oidc.authentication_failed';
+          }
+        } catch {
+          // Not a parseable URL — nothing to report, carry on as before.
+        }
+        if (error) {
+          console.error('[OIDC] Login rejected by the backend:', error);
+          mainWindow!.loadFile(HTML_PATHS['/login'], { query: { error } });
+        } else {
+          mainWindow!.loadFile(htmlFile);
+        }
         exchangeWin.destroy();
       });
 
       exchangeWin.webContents.on('did-fail-load', (_e, errCode, errDesc) => {
         console.error('[OIDC] Exchange failed:', errCode, errDesc);
-        mainWindow!.loadFile(HTML_PATHS['/login']);
+        mainWindow!.loadFile(HTML_PATHS['/login'], { query: { error: 'oidc.authentication_failed' } });
         exchangeWin.destroy();
       });
 

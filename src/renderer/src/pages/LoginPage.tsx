@@ -5,7 +5,17 @@ import { useLocation } from 'react-router-dom';
 import { useI18nContext } from '@/i18n/i18n-react';
 import { useGetAccountsQuery, useGetAdminOidcAuthUrlQuery, useGetOidcAuthUrlQuery } from '@/api/session.api';
 import { useUpdateSetting, useGetSettings, Account } from '@/store/settingsSlice';
-import { getOidcRedirectUrl, nextParamToPath, isElectronApp, electronFileUrl, getBackendOrigin, isPostLogoutReturn } from '@/utils';
+import {
+  AUTO_LOGIN_RETRY_MS,
+  AUTO_LOGIN_STARTED_KEY,
+  getOidcRedirectUrl,
+  nextParamToPath,
+  isElectronApp,
+  electronFileUrl,
+  getBackendOrigin,
+  isPostLogoutReturn,
+} from '@/utils';
+import { oidcErrorTitle } from '@/utils/oidcErrors';
 import { useBackendConfig } from '@/components/settings/ConnectivityChecker';
 
 const useQueryParam = (name: string): string | null => {
@@ -51,6 +61,13 @@ export const LoginPage = () => {
    */
   const cameFromLogout = useCameFromLogout();
   const switchAccount = useQueryParam('switch') === '1' || cameFromLogout;
+  /**
+   * An `oidc.*` code the desktop main process brings back when the backend rejected a sign-in that
+   * finished in its hidden window. Shown below, and it keeps the automatic sign-in from retrying.
+   */
+  const loginError = useQueryParam('error');
+  /** Set when the automatic sign-in was skipped because the previous one did not end in a session. */
+  const [autoLoginStopped, setAutoLoginStopped] = useState(false);
 
   // In offline mode, redirect immediately to the intended destination — but not at the end of
   // a logout. Forwarding there into an app that fetches nothing is how a device ended up
@@ -154,15 +171,29 @@ export const LoginPage = () => {
   // Once the OIDC URL is ready and the account was restored from saved settings,
   // automatically redirect without requiring the user to click the Login button.
   useEffect(() => {
-    if (!isElectronApp() || switchAccount || !autoRestoredRef.current) return;
-    if (isAdminSelected && !adminOidcLoading && adminOidcUrlData?.url) {
-      autoRestoredRef.current = false;
-      openUrl(adminOidcUrlData.url);
-    } else if (isTenantSelected && !oidcLoading && oidcUrlData?.url) {
-      autoRestoredRef.current = false;
-      openUrl(oidcUrlData.url);
+    // A login error means the last attempt was just rejected — signing in again would repeat it.
+    if (!isElectronApp() || switchAccount || loginError || !autoRestoredRef.current) return;
+    const url =
+      isAdminSelected && !adminOidcLoading ? adminOidcUrlData?.url : isTenantSelected && !oidcLoading ? oidcUrlData?.url : undefined;
+    if (!url) return;
+    autoRestoredRef.current = false;
+
+    // Never twice in a row. Being back here within a minute of the last automatic sign-in means it
+    // did not end in a session (App clears the marker once one exists), and trying again would only
+    // repeat it — the login page flashing in an endless loop.
+    try {
+      const last = Number(sessionStorage.getItem(AUTO_LOGIN_STARTED_KEY) || 0);
+      if (Date.now() - last < AUTO_LOGIN_RETRY_MS) {
+        setAutoLoginStopped(true);
+        return;
+      }
+      sessionStorage.setItem(AUTO_LOGIN_STARTED_KEY, String(Date.now()));
+    } catch {
+      // Without storage a loop cannot be told apart from a first attempt, so do not risk one.
+      return;
     }
-  }, [isAdminSelected, isTenantSelected, adminOidcLoading, oidcLoading, adminOidcUrlData, oidcUrlData]);
+    openUrl(url);
+  }, [isAdminSelected, isTenantSelected, adminOidcLoading, oidcLoading, adminOidcUrlData, oidcUrlData, loginError]);
 
   const onSelectLicense = (value: Account) => {
     // User manually selected — disable auto-proceed
@@ -199,6 +230,15 @@ export const LoginPage = () => {
           >
             <Typography variant="h5">{LL.AUTH.LOGIN()}</Typography>
 
+            {loginError && (
+              <Alert severity="error">
+                <Typography variant="subtitle2">{oidcErrorTitle(LL, loginError)}</Typography>
+                <Typography variant="body2">
+                  {LL.AUTH.LOGIN_REJECTED()} ({loginError})
+                </Typography>
+              </Alert>
+            )}
+            {autoLoginStopped && !loginError && <Alert severity="info">{LL.AUTH.AUTO_LOGIN_STOPPED()}</Alert>}
             {errorText && <Alert severity="error">{errorText}</Alert>}
 
             {accountsError && !offlineMode && (

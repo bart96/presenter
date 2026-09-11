@@ -1,7 +1,14 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import type { PresentationContent } from './types';
 import type { StageOverlayPayload } from '@/stage/types';
-import { styleToContainerCss, styleToTextCss, mergeStyles, DEFAULT_STYLE, type ResolvedStyle } from '@/utils/styleUtils';
+import {
+  styleToContainerCss,
+  styleToTextCss,
+  mergeStyles,
+  DEFAULT_STYLE,
+  resolveNextLinePreview,
+  type ResolvedStyle,
+} from '@/utils/styleUtils';
 import {
   BibleVerseContent,
   contentIdentityKey,
@@ -14,7 +21,6 @@ import {
 } from '@/presentation';
 import { StageOverlay } from '@/presentation/StageOverlay';
 import { rampToVolume } from '@/presentation/videoUtils';
-import { MAIN_LANGUAGE_SLOT, entryForSlot } from '@/utils/languageSlots';
 
 /**
  * Legacy props interface — kept for backward compatibility.
@@ -152,17 +158,27 @@ const FadeOutLayer = ({
             })()
           )}
           {/* Include next-block preview in fade-out layer */}
-          {prevContent.nextBlockPreviewLines && prevContent.nextBlockPreviewLines.length > 0 && (
-            <NextBlockPreview
-              lines={prevContent.nextBlockPreviewLines}
-              color={prevContent.nextLinePreviewColor || prevResolved.nextLinePreviewColor}
-              textStyle={prevTextCss}
-              languages={prevContent.languages}
-              songLanguages={prevContent.songLanguages}
-              langStyles={prevResolved.languageStyles}
-              paragraphPadding={prevResolved.paragraphPadding}
-            />
-          )}
+          {prevContent.nextBlockPreviewLines &&
+            prevContent.nextBlockPreviewLines.length > 0 &&
+            (() => {
+              const preview = resolveNextLinePreview(prevResolved, true);
+              return (
+                preview.enabled && (
+                  <NextBlockPreview
+                    lines={prevContent.nextBlockPreviewLines}
+                    color={prevContent.nextLinePreviewColor || preview.color}
+                    opacity={preview.opacity}
+                    layout={preview}
+                    edgePadding={prevPadding}
+                    textStyle={prevTextCss}
+                    languages={prevContent.languages}
+                    songLanguages={prevContent.songLanguages}
+                    langStyles={prevResolved.languageStyles}
+                    paragraphPadding={prevResolved.paragraphPadding}
+                  />
+                )
+              );
+            })()}
         </div>
       )}
     </div>
@@ -458,24 +474,30 @@ export const Presentation = (props: PresentationProps) => {
       >
         {renderContent()}
         {/* Next-block preview — hidden in stream mode */}
-        {content.displayMode !== 'stream' && content.nextBlockPreviewLines && content.nextBlockPreviewLines.length > 0 && (
-          <NextBlockPreview
-            lines={content.nextBlockPreviewLines}
-            color={
-              content.nextLinePreviewColor ||
-              resolvedStyle.nextLinePreviewColor ||
-              entryForSlot(resolvedStyle.languageStyles, MAIN_LANGUAGE_SLOT)?.nextLinePreviewColor
-            }
-            opacity={
-              resolvedStyle.nextLinePreviewOpacity ?? entryForSlot(resolvedStyle.languageStyles, MAIN_LANGUAGE_SLOT)?.nextLinePreviewOpacity
-            }
-            textStyle={textCss}
-            languages={content.languages}
-            songLanguages={content.songLanguages}
-            langStyles={resolvedStyle.languageStyles}
-            paragraphPadding={resolvedStyle.paragraphPadding}
-          />
-        )}
+        {content.displayMode !== 'stream' &&
+          content.nextBlockPreviewLines &&
+          content.nextBlockPreviewLines.length > 0 &&
+          (() => {
+            // The lines only arrive when the operator's style shows the preview; this window's own
+            // style can still switch it off.
+            const preview = resolveNextLinePreview(resolvedStyle, true);
+            return (
+              preview.enabled && (
+                <NextBlockPreview
+                  lines={content.nextBlockPreviewLines}
+                  color={content.nextLinePreviewColor || preview.color}
+                  opacity={preview.opacity}
+                  layout={preview}
+                  edgePadding={contentPadding}
+                  textStyle={textCss}
+                  languages={content.languages}
+                  songLanguages={content.songLanguages}
+                  langStyles={resolvedStyle.languageStyles}
+                  paragraphPadding={resolvedStyle.paragraphPadding}
+                />
+              )
+            );
+          })()}
       </div>
 
       {/* Copyright overlay — always rendered so it can animate in/out */}

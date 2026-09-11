@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   Box,
   ClickAwayListener,
@@ -13,14 +13,13 @@ import {
   Typography,
 } from '@mui/material';
 import { Straighten as StraightenIcon } from '@mui/icons-material';
-
-const CSS_UNITS = ['px', 'pt', 'em', 'rem', 'vh', 'vw', 'vmin', 'vmax', '%'] as const;
-type CssUnit = (typeof CSS_UNITS)[number];
+import { useI18nContext } from '@/i18n/i18n-react';
+import { CSS_UNITS, cssUnitHint, splitLength, stepValue, type CssUnit } from '@/components/style/cssUnits';
 
 /** Parse a CSS value like "4vh" into { num: 4, unit: 'vh' }. */
 const parseCssValue: (value: string) => { num: number; unit: CssUnit } = (value) => {
-  const match = value.match(/^(-?\d*\.?\d+)\s*(px|pt|em|rem|vh|vw|vmin|vmax|%)$/i);
-  if (match) return { num: parseFloat(match[1]), unit: match[2].toLowerCase() as CssUnit };
+  const split = splitLength(value);
+  if (split) return split;
   const num = parseFloat(value);
   if (!isNaN(num)) return { num, unit: 'px' };
   return { num: 0, unit: 'px' };
@@ -76,36 +75,38 @@ export const CssUnitInput = ({
   label,
   unitRanges,
 }: CssUnitInputProps) => {
-  const parsed = parseCssValue(value);
-  const [num, setNum] = useState(parsed.num);
-  const [unit, setUnit] = useState<CssUnit>(parsed.unit);
+  const { LL } = useI18nContext();
   const [sliderOpen, setSliderOpen] = useState(false);
   const tuneRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync external value changes
-  useEffect(() => {
-    const p = parseCssValue(value);
-    setNum(p.num);
-    setUnit(p.unit);
-  }, [value]);
+  // Read straight from `value` on every render. The number and unit used to be copied into state
+  // and kept in step by an effect, which set state again after every single change — holding an
+  // arrow key queued those updates faster than they could render, until React gave up with
+  // "Maximum update depth exceeded".
+  const { num, unit } = parseCssValue(value);
+
+  /** The last value sent up, and the `value` it was worked out from. */
+  const sentRef = useRef<{ from: string; to: string } | null>(null);
+
+  /**
+   * What an edit starts from. Key repeat can outrun rendering, so while a change is still on its
+   * way up and `value` has not caught up, that change is the base — otherwise every press in the
+   * burst would start from the same stale number and only the last one would count.
+   */
+  const current = () => parseCssValue(sentRef.current && sentRef.current.from === value ? sentRef.current.to : value);
 
   const emit = useCallback(
     (n: number, u: CssUnit) => {
       const formatted = Number.isInteger(n) ? `${n}${u}` : `${parseFloat(n.toFixed(2))}${u}`;
+      sentRef.current = { from: value, to: formatted };
       onChange(formatted);
     },
-    [onChange],
+    [onChange, value],
   );
 
-  const handleNumChange = (n: number) => {
-    setNum(n);
-    emit(n, unit);
-  };
-  const handleUnitChange = (u: CssUnit) => {
-    setUnit(u);
-    emit(num, u);
-  };
+  const handleNumChange = (n: number) => emit(n, current().unit);
+  const handleUnitChange = (u: CssUnit) => emit(current().num, u);
 
   const defaults = getDefaultRange(unit);
   const overrides = unitRanges?.[unit] ?? {};
@@ -140,6 +141,14 @@ export const CssUnitInput = ({
           type="number"
           value={num}
           onChange={(e) => handleNumChange(parseFloat(e.target.value) || 0)}
+          onKeyDown={(e) => {
+            // Arrow keys step by the unit's own increment (see keyboardStep). Left to the native
+            // number input they would use the slider step and snap to its grid instead.
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+            e.preventDefault();
+            const base = current();
+            emit(stepValue(base.num, base.unit, e.key === 'ArrowUp' ? 1 : -1), base.unit);
+          }}
           placeholder={placeholder}
           slotProps={{
             htmlInput: { step: range.step },
@@ -196,8 +205,13 @@ export const CssUnitInput = ({
           )}
         >
           {units.map((u) => (
-            <MenuItem key={u} value={u} sx={{ fontSize: '0.8rem' }}>
-              {u}
+            <MenuItem key={u} value={u} sx={{ fontSize: '0.8rem', gap: 1.5 }}>
+              <Box component="span" sx={{ fontWeight: 600, minWidth: 34 }}>
+                {u}
+              </Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {cssUnitHint(LL, u)}
+              </Typography>
             </MenuItem>
           ))}
         </Select>

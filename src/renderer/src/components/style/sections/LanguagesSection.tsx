@@ -124,6 +124,7 @@ export const LanguagesSection = ({ ctx }: { ctx: StyleFormCtx }) => {
               entry={entry}
               onChange={(patch) => updateSlot(entry.slot, patch)}
               inheritedFor={inheritedForSlot(entry.slot)}
+              isMainSlot={isMain}
               LL={LL}
             />
           </PropCard>

@@ -12,6 +12,7 @@ import { CssUnitInput } from '@/components/style/CssUnitInput';
 import { CardGrid, PropCard, StylePropRow } from '@/components/style/StyleFormPrimitives';
 import { BoxModelEditor } from '@/components/style/BoxModelEditor';
 import type { StyleFormCtx } from '@/components/style/styleFormContext';
+import { DEFAULT_STYLE } from '@/utils/styleUtils';
 
 /** Layout: where the text block sits on the screen and how much room it gets. */
 export const LayoutSection = ({ ctx }: { ctx: StyleFormCtx }) => {
@@ -27,7 +28,6 @@ export const LayoutSection = ({ ctx }: { ctx: StyleFormCtx }) => {
             togglePropEnabled('textAlign', e);
             togglePropEnabled('verticalAlign', e);
           }}
-
           propKeys={['textAlign', 'verticalAlign']}
         >
           <Stack
@@ -63,17 +63,17 @@ export const LayoutSection = ({ ctx }: { ctx: StyleFormCtx }) => {
               value={getProp<string>('verticalAlign').value || 'center'}
               onChange={(_, val) => val && updateProp('verticalAlign', { enabled: true, value: val })}
             >
-              <Tooltip title={LL.STYLE.VERTICAL_ALIGN() + ': Top'}>
+              <Tooltip title={`${LL.STYLE.VERTICAL_ALIGN()}: ${LL.STYLE.VERTICAL_ALIGN_TOP()}`}>
                 <ToggleButton value="top">
                   <VAlignTopIcon />
                 </ToggleButton>
               </Tooltip>
-              <Tooltip title={LL.STYLE.VERTICAL_ALIGN() + ': Center'}>
+              <Tooltip title={`${LL.STYLE.VERTICAL_ALIGN()}: ${LL.STYLE.VERTICAL_ALIGN_CENTER()}`}>
                 <ToggleButton value="center">
                   <VAlignMidIcon />
                 </ToggleButton>
               </Tooltip>
-              <Tooltip title={LL.STYLE.VERTICAL_ALIGN() + ': Bottom'}>
+              <Tooltip title={`${LL.STYLE.VERTICAL_ALIGN()}: ${LL.STYLE.VERTICAL_ALIGN_BOTTOM()}`}>
                 <ToggleButton value="bottom">
                   <VAlignBotIcon />
                 </ToggleButton>
@@ -85,7 +85,6 @@ export const LayoutSection = ({ ctx }: { ctx: StyleFormCtx }) => {
           label={LL.STYLE.TRANSFORM()}
           enabled={getProp<string>('textTransform').enabled}
           onToggle={(e) => togglePropEnabled('textTransform', e)}
-
           propKeys={['textTransform']}
         >
           <Select
@@ -94,7 +93,8 @@ export const LayoutSection = ({ ctx }: { ctx: StyleFormCtx }) => {
             onChange={(e) => updateProp('textTransform', { enabled: true, value: e.target.value as never })}
             sx={{ width: 150 }}
           >
-            <MenuItem value="none">None</MenuItem>
+            <MenuItem value="none">{LL.STYLE.TRANSFORM_NONE()}</MenuItem>
+            {/* The remaining options are written the way they transform, so they explain themselves in any language. */}
             <MenuItem value="uppercase">UPPERCASE</MenuItem>
             <MenuItem value="lowercase">lowercase</MenuItem>
             <MenuItem value="capitalize">Capitalize</MenuItem>
@@ -104,7 +104,6 @@ export const LayoutSection = ({ ctx }: { ctx: StyleFormCtx }) => {
           label={LL.STYLE.LINE_HEIGHT()}
           enabled={getProp<string>('lineHeight').enabled}
           onToggle={(e) => togglePropEnabled('lineHeight', e)}
-
           propKeys={['lineHeight']}
         >
           <CssUnitInput
@@ -121,7 +120,9 @@ export const LayoutSection = ({ ctx }: { ctx: StyleFormCtx }) => {
               label: LL.STYLE.PADDING(),
               value: getProp<string>('padding').value || '',
               enabled: getProp<string>('padding').enabled,
-              placeholder: '5% 10%',
+              // What actually applies when the style leaves it unset. This read "5% 10%" and
+              // "1vh 0px", neither of which the presentation ever used.
+              placeholder: DEFAULT_STYLE.padding ?? '0',
               onChange: (value) => updateProp('padding', { enabled: true, value }),
               onReset: () => togglePropEnabled('padding', false),
             }}
@@ -129,7 +130,7 @@ export const LayoutSection = ({ ctx }: { ctx: StyleFormCtx }) => {
               label: LL.STYLE.PARAGRAPH_PADDING(),
               value: getProp<string>('paragraphPadding').value || '',
               enabled: getProp<string>('paragraphPadding').enabled,
-              placeholder: '1vh 0px',
+              placeholder: DEFAULT_STYLE.paragraphPadding ?? '0',
               onChange: (value) => updateProp('paragraphPadding', { enabled: true, value }),
               onReset: () => togglePropEnabled('paragraphPadding', false),
             }}

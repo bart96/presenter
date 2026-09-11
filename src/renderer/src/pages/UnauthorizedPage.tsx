@@ -3,6 +3,7 @@ import { Alert, Box, Button, Card, CardContent, List, ListItem, ListItemText, St
 import { Error as ErrorIcon, ArrowBack as BackIcon } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18nContext } from '@/i18n/i18n-react';
+import { oidcErrorTitle } from '@/utils/oidcErrors';
 
 const useQueryParam = (name: string): string | null => {
   const { search } = useLocation();
@@ -29,36 +30,7 @@ export const UnauthorizedPage = () => {
     });
   }, [error, requiredGroup, userGroups, sub, details]);
 
-  const getErrorTitle = () => {
-    switch (error) {
-      case 'oidc.admin_access_denied':
-        return LL.ERRORS.ADMIN_ACCESS_DENIED();
-      case 'oidc.admin_config_missing':
-        return LL.ERRORS.ADMIN_CONFIG_MISSING();
-      case 'oidc.access_denied':
-        return LL.ERRORS.ACCESS_DENIED();
-      case 'oidc.no_account':
-        return LL.ERRORS.NO_ACCOUNT();
-      case 'oidc.no_license':
-        return LL.ERRORS.NO_LICENSE_TITLE();
-      case 'oidc.invalid_license':
-        return LL.ERRORS.INVALID_LICENSE_TITLE();
-      case 'oidc.no_provider':
-        return LL.ERRORS.NO_PROVIDER_TITLE();
-      case 'oidc.invalid_state':
-        return LL.ERRORS.INVALID_STATE();
-      case 'oidc.token_exchange_failed':
-        return LL.ERRORS.TOKEN_EXCHANGE_FAILED();
-      case 'oidc.userinfo_failed':
-        return LL.ERRORS.USERINFO_FAILED();
-      case 'oidc.authentication_failed':
-        return LL.ERRORS.AUTHENTICATION_FAILED();
-      case 'oidc.auth_url_failed':
-        return LL.ERRORS.AUTH_URL_FAILED();
-      default:
-        return LL.ERRORS.UNKNOWN();
-    }
-  };
+  const getErrorTitle = () => oidcErrorTitle(LL, error);
 
   const getErrorMessage = () => {
     switch (error) {

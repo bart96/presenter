@@ -16,7 +16,7 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { GlobalErrorHandler } from '@/components/common/GlobalErrorHandler';
 import { useMetrics } from '@/hooks/useMetrics';
 import { useGetSessionQuery } from '@/api/session.api';
-import { redirectToLogin } from '@/utils';
+import { AUTO_LOGIN_STARTED_KEY, redirectToLogin } from '@/utils';
 
 // Load all locales upfront so switching is instant
 loadAllLocales();
@@ -67,6 +67,13 @@ const App = () => {
     if (offlineMode || sessionLoading) return;
     if (session && !session.isAuthenticated) {
       redirectToLogin();
+    } else if (session?.isAuthenticated) {
+      // Signed in, so the login page may sign in automatically again next time (see LoginPage).
+      try {
+        sessionStorage.removeItem(AUTO_LOGIN_STARTED_KEY);
+      } catch {
+        // Storage unavailable — nothing was stored to clear.
+      }
     }
   }, [offlineMode, session, sessionLoading]);
 

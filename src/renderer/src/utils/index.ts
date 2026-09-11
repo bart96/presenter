@@ -119,6 +119,14 @@ export const isPostLogoutReturn = (params: URLSearchParams): boolean => {
   return state === LOGOUT_STATE || state === LOGOUT_RESET_STATE || params.get('logged_out') === '1';
 };
 
+/**
+ * sessionStorage key holding when the desktop login page last signed in automatically. Cleared as
+ * soon as a session exists; see the auto-proceed in LoginPage for why it is needed.
+ */
+export const AUTO_LOGIN_STARTED_KEY = 'presenter_auto_login_started';
+/** Back on the login page sooner than this after an automatic sign-in means it did not work. */
+export const AUTO_LOGIN_RETRY_MS = 60_000;
+
 export type DetectedOs = 'windows' | 'macos' | 'linux' | 'unknown';
 
 /** Detect the user's OS to offer the right installer. */
