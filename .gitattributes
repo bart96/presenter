@@ -1,3 +1,9 @@
+# LF everywhere, including in the working tree. .editorconfig and .prettierrc both ask for
+# LF, so a CRLF checkout on Windows put the two at odds and prettier flagged every line of
+# every affected file — 7,200 warnings, which buried everything else eslint had to say.
+# The repository already stores LF, so this changes nothing that is committed.
+*                    text=auto eol=lf
+
 # Shell scripts must keep LF — a CRLF checkout on Windows makes them fail on the
 # deploy target with "bad interpreter: /usr/bin/env bash^M".
 *.sh                 text eol=lf

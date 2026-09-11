@@ -130,12 +130,12 @@ class Values
         return boolval($this->getPath($name, $default));
     }
 
-    public function getAsInt(string $attribute, int $default = null): int
+    public function getAsInt(string $attribute, ?int $default = null): int
     {
         return intval($this->get($attribute, $default));
     }
 
-    public function getAsBool(string $attribute, bool $default = null): bool
+    public function getAsBool(string $attribute, ?bool $default = null): bool
     {
         return boolval($this->get($attribute, $default));
     }

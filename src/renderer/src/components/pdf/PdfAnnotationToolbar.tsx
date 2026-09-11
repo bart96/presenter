@@ -1,5 +1,5 @@
 ﻿/**
- * PDF Annotation Toolbar � allows musicians to annotate PDF sheet music.
+ * PDF Annotation Toolbar — allows musicians to annotate PDF sheet music.
  * Stores each annotation as an individual row in the database (immediate auto-save).
  * Supports text comments, freehand drawings, highlights, and uploaded SVG icons.
  *
@@ -173,7 +173,7 @@ interface PdfAnnotationToolbarProps {
   pdfUrl: string;
   musicianName: string;
   songNumber: number;
-  /** Optional display name of the song � included in the exported PDF filename. */
+  /** Optional display name of the song — included in the exported PDF filename. */
   songName?: string;
   filename: string;
   containerRef: RefObject<HTMLDivElement>;
@@ -422,7 +422,7 @@ export const PdfAnnotationToolbar = ({
       // Check in reverse order (top-most first)
       for (let i = pageAnns.length - 1; i >= 0; i--) {
         const ann = pageAnns[i];
-        // Tight threshold � the pointer must nearly touch the annotation
+        // Tight threshold — the pointer must nearly touch the annotation
         const strokeThreshold = 0.8; // percentage units for strokes/points
 
         if (ann.tool === 'draw' && ann.points && ann.points.length > 1) {
@@ -1295,13 +1295,13 @@ export const PdfAnnotationToolbar = ({
         const r = 8; // fixed pixel radius for the indicator circle
         ctx.save();
         ctx.globalAlpha = 0.85;
-        // Outer circle � white outline for contrast
+        // Outer circle — white outline for contrast
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.arc(ex, ey, r, 0, Math.PI * 2);
         ctx.stroke();
-        // Inner circle � dark ring
+        // Inner circle — dark ring
         ctx.strokeStyle = '#333333';
         ctx.lineWidth = 1.2;
         ctx.beginPath();
@@ -1402,10 +1402,10 @@ export const PdfAnnotationToolbar = ({
           : effectiveTool === 'icon'
             ? 'copy'
             : effectiveTool === 'eraser'
-              ? 'none' // hide the OS cursor � the canvas indicator takes over
+              ? 'none' // hide the OS cursor — the canvas indicator takes over
               : 'default';
 
-  /** Style for SVG icon previews � apply filter in dark mode for visibility */
+  /** Style for SVG icon previews — apply filter in dark mode for visibility */
   const iconPreviewStyle: CSSProperties = {
     width: 24,
     height: 24,
@@ -1415,7 +1415,7 @@ export const PdfAnnotationToolbar = ({
 
   return (
     <>
-      {/* -- Canvas overlays � always rendered (read-only when not editing) -- */}
+      {/* -- Canvas overlays — always rendered (read-only when not editing) -- */}
       {Array.from(pageWrappers.entries()).map(([pageNum, wrapper]) =>
         createPortal(
           <canvas
@@ -1448,7 +1448,7 @@ export const PdfAnnotationToolbar = ({
           wrapper,
         ),
       )}
-      {/* -- Toolbar UI � only visible in edit mode -- */}
+      {/* -- Toolbar UI — only visible in edit mode -- */}
       {editMode && (
         <Stack
           sx={{
@@ -1456,7 +1456,7 @@ export const PdfAnnotationToolbar = ({
             display: 'inline-flex',
           }}
         >
-          {/* -- Tool-specific options (secondary bar � above main toolbar) -- */}
+          {/* -- Tool-specific options (secondary bar — above main toolbar) -- */}
           {tool === 'draw' && (
             <Paper elevation={1} sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.5, mb: 0.5, borderRadius: 1 }}>
               <Typography variant="caption" sx={{ minWidth: 60 }}>

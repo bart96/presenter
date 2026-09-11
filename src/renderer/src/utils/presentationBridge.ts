@@ -2,6 +2,7 @@ import type { PresentationContent } from '@/presentation/types';
 import type { LanguageStyleEntry } from '@/api/styles.api';
 import { WindowConfig } from '@/store/windowSlice';
 import { languagesForStyle } from '@/utils/languageSlots';
+import { EMPTY_STAGE_PAYLOAD, type StageOverlayPayload } from '@/stage/types';
 
 interface PresentationWindowEntry {
   id: string;
@@ -22,6 +23,8 @@ interface PresentationWindowEntry {
    * the controller's renderer thread, blocking paint.
    */
   lastSentSerialized?: string;
+  /** Same idea for the stage overlay, which travels on its own channel. */
+  lastSentStage?: string;
 }
 
 /** Registry of open presentation windows */
@@ -67,6 +70,9 @@ export function adoptElectronWindow(id: string, config: WindowConfig): void {
   if (lastBroadcastContent) {
     setTimeout(() => sendContent(id, lastBroadcastContent!), 100);
   }
+  // Same for the stage overlay: a window adopted mid-countdown has to pick the timer back
+  // up, not sit blank until the next cue change.
+  setTimeout(() => replayStage(id), 100);
 }
 
 /**
@@ -139,6 +145,9 @@ async function openPresentationWindowElectron(config: WindowConfig): Promise<str
   if (lastBroadcastContent) {
     setTimeout(() => sendContent(id, lastBroadcastContent!), 500);
   }
+
+  // A window opened while a countdown is running joins it in progress.
+  setTimeout(() => replayStage(id), 500);
 
   return id;
 }
@@ -248,6 +257,7 @@ function handlePresentationReady(event: MessageEvent): void {
   // Whatever we "already sent" went to a document that no longer exists.
   entry.lastSentSerialized = undefined;
   if (lastBroadcastContent) void sendContent(entry.id, lastBroadcastContent);
+  replayStage(entry.id);
   window.dispatchEvent(new CustomEvent('presenter:force-broadcast'));
 }
 
@@ -337,6 +347,80 @@ export async function broadcastContent(content: PresentationContent): Promise<vo
   }
 }
 
+// ── Stage monitor ─────────────────────────────────────────────────────────────
+//
+// A channel of its own, deliberately separate from the content path.
+//
+// The content broadcast is deduped on a navigation key and re-serialized per window; a
+// clock pushed through it would defeat both and re-send the entire slide once a second for
+// every open window. So the stage overlay travels alone, carrying only absolute timestamps,
+// and is sent when a *cue* changes rather than when its value does. The windows do the
+// per-second arithmetic themselves.
+
+/** Last stage payload — replayed to windows that open or reload after it was sent. */
+let lastBroadcastStage: StageOverlayPayload = EMPTY_STAGE_PAYLOAD;
+
+/**
+ * The layers a given window subscribes to. Subscription is opt-in: a window with no
+ * `stageLayerIds` shows no stage content, so adding a countdown never surprises a beamer
+ * that was only ever meant to show lyrics.
+ */
+function stagePayloadForWindow(payload: StageOverlayPayload, config: WindowConfig): StageOverlayPayload {
+  const subscribed = config.stageLayerIds;
+  if (!subscribed || subscribed.length === 0) return EMPTY_STAGE_PAYLOAD;
+  return { layers: payload.layers.filter((l) => subscribed.includes(l.id)) };
+}
+
+/** Send the stage overlay to one window, skipping the hop when nothing changed for it. */
+export async function sendStage(id: string, payload: StageOverlayPayload): Promise<void> {
+  const entry = openWindows.get(id);
+  if (!entry || entry.closed) return;
+
+  const windowPayload = stagePayloadForWindow(payload, entry.config);
+  let serialized = '';
+  try {
+    serialized = JSON.stringify(windowPayload);
+  } catch {
+    /* fall through and send anyway */
+  }
+  if (serialized && serialized === entry.lastSentStage) return;
+  entry.lastSentStage = serialized || undefined;
+
+  if (entry.isElectron) {
+    window.api.updateStageOverlay?.(id, windowPayload as never);
+  } else if (entry.window && !entry.window.closed) {
+    entry.window.postMessage({ type: 'UPDATE_STAGE', payload: windowPayload }, '*');
+  }
+}
+
+/** Push the stage overlay to every open window. */
+export async function broadcastStage(payload: StageOverlayPayload): Promise<void> {
+  lastBroadcastStage = payload;
+  for (const [id] of openWindows) {
+    void sendStage(id, payload);
+  }
+}
+
+/**
+ * Forget what a window was last told about the stage, so the next send actually goes.
+ * Needed whenever a window's renderer restarts — the payload it "already has" was received
+ * by a document that no longer exists.
+ */
+export function invalidateSentStageCache(id?: string): void {
+  if (id) {
+    const entry = openWindows.get(id);
+    if (entry) entry.lastSentStage = undefined;
+    return;
+  }
+  for (const [, entry] of openWindows) entry.lastSentStage = undefined;
+}
+
+/** Re-send the current overlay to one window — used after it opens, reloads, or resubscribes. */
+export function replayStage(id: string): void {
+  invalidateSentStageCache(id);
+  void sendStage(id, lastBroadcastStage);
+}
+
 /**
  * Drop the per-window dedupe snapshots so the next broadcast is actually sent.
  *
@@ -373,6 +457,8 @@ export function updateWindowConfigInBridge(id: string, partial: Partial<WindowCo
   if (lastBroadcastContent) {
     void sendContent(id, lastBroadcastContent);
   }
+  // `stageLayerIds` may have changed, which decides what this window is allowed to see.
+  replayStage(id);
 }
 
 /**

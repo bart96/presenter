@@ -14,16 +14,22 @@ import {
 } from '@mui/material';
 import { CheckCircle as CheckCircleIcon, RadioButtonUnchecked as PendingIcon, Storage as StorageIcon } from '@mui/icons-material';
 import { useI18nContext } from '@/i18n/i18n-react';
-import { useGetAdminMigrationsQuery, useRunAdminMigrationsMutation } from '@/api/admin.api';
+import { useGetAdminConfigQuery, useGetAdminMigrationsQuery, useRunAdminMigrationsMutation } from '@/api/admin.api';
+import { DbCopy } from './DbCopy';
 
 export const Database = () => {
   const { LL } = useI18nContext();
   const { data: migrationStatus, isLoading: migrationsLoading } = useGetAdminMigrationsQuery();
+  // The copy endpoint only exists on a dev build that also has a copy.config.php. Asking
+  // AdminConfig keeps this off the 404 path on every other deployment.
+  const { data: config } = useGetAdminConfigQuery();
   const [runMigrations, { isLoading: migrationsRunning, data: migrationResult, reset: resetMigrationResult }] =
     useRunAdminMigrationsMutation();
 
   return (
     <Stack sx={{ gap: 2 }}>
+      {config?.devTools?.dbCopy && <DbCopy />}
+
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <StorageIcon />

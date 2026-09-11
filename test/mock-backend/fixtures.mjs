@@ -56,10 +56,20 @@ export const shows = [
   { title: 'Jugendabend 09.08.2026', date: '2026-08-09 18:00:00', order: [], groups: null },
 ];
 
+/**
+ * Bands. Two of them, one with a colour and members, so the settings editor, the pickers
+ * and the chips all have something real to render.
+ */
+export const bands = [
+  { id: 1, name: 'Sonntagsband', color: '#1976d2', members: ['Marcel', 'Lena', 'Tobias'], sortOrder: 0 },
+  { id: 2, name: 'Jugendband', color: '#7b1fa2', members: ['Jonas', 'Mira'], sortOrder: 1 },
+];
+
 export const setLists = [
   {
     id: 1,
     name: 'Sonntagsband',
+    bandIds: [1],
     sortOrder: 0,
     entries: [
       {

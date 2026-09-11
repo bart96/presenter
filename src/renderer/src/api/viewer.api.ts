@@ -30,9 +30,4 @@ const viewerTokenApi = presenterApi.injectEndpoints({
   overrideExisting: false,
 });
 
-export const {
-  useGetViewerTokenQuery,
-  useGenerateViewerTokenMutation,
-  useRevokeViewerTokenMutation,
-} = viewerTokenApi;
-
+export const { useGetViewerTokenQuery, useGenerateViewerTokenMutation, useRevokeViewerTokenMutation } = viewerTokenApi;

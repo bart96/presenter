@@ -28,6 +28,8 @@ export type SetListEntry = {
 export type SetList = {
   id: number;
   name: string;
+  /** Bands this list belongs to. Several are allowed (a list a whole team works from). */
+  bandIds?: number[];
   createdAt?: string;
   updatedAt?: string;
   entries: SetListEntry[];
@@ -47,12 +49,13 @@ const setListsApi = presenterApi.injectEndpoints({
       query: () => 'rest/SetLists',
       providesTags: [{ type: 'SetLists', id: 'LIST' }],
     }),
-    createSetList: build.mutation<ApiSuccess<SetList>, { name: string }>({
+    createSetList: build.mutation<ApiSuccess<SetList>, { name: string; bandIds?: number[] }>({
       query: (body) => ({ url: 'rest/SetLists', method: 'POST', body }),
       invalidatesTags: [{ type: 'SetLists', id: 'LIST' }],
     }),
-    renameSetList: build.mutation<ApiSuccess<{ id: number; name: string }>, { id: number; name: string }>({
-      query: ({ id, name }) => ({ url: `rest/SetLists/${id}`, method: 'PUT', body: { name } }),
+    /** Partial update: a rename need not carry the bands, and a band change need not rename. */
+    updateSetList: build.mutation<ApiSuccess<{ id: number; name: string }>, { id: number; name?: string; bandIds?: number[] }>({
+      query: ({ id, ...body }) => ({ url: `rest/SetLists/${id}`, method: 'PUT', body }),
       invalidatesTags: [{ type: 'SetLists', id: 'LIST' }],
     }),
     deleteSetList: build.mutation<ApiSuccess<{ message: string }>, { id: number }>({
@@ -98,7 +101,7 @@ const setListsApi = presenterApi.injectEndpoints({
 export const {
   useGetSetListsQuery,
   useCreateSetListMutation,
-  useRenameSetListMutation,
+  useUpdateSetListMutation,
   useDeleteSetListMutation,
   useReorderSetListsMutation,
   useAddSetListEntryMutation,

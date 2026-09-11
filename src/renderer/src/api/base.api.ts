@@ -2,6 +2,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
 
 import { getSetting } from '@/store/settingsSlice';
+import { isElectronApp } from '@/utils';
 
 /** Custom event dispatched when the session has expired (401 from backend) */
 export const SESSION_EXPIRED_EVENT = 'presenter:session-expired';
@@ -13,15 +14,18 @@ export type ApiSuccess<T> = T;
 // Base API instance
 // ─────────────────────────────────────────────
 
-/** Read the backend base URL from localStorage. Called per-request so runtime changes take effect.
- *  In DEV mode the Vite proxy is used by default (empty string = relative URL),
- *  but an explicit localStorage value overrides that so users can test against a real backend. */
 /**
- * Read the backend base URL from localStorage. Called per-request so runtime changes take effect.
- * Default matches the settingsSlice default ('/') so they stay in sync.
- * In a pure Vite-dev environment you can override this to '' in localStorage to use the proxy.
+ * Base URL for backend requests. Resolved per request so a changed setting applies at once.
+ *
+ * Only the desktop app uses the configured `backendUrl`: it loads its pages from file:// and
+ * has no other way to know the server. The browser build is always served by the backend it
+ * talks to, so it uses relative URLs and ignores the setting. A value left over from an older
+ * version would otherwise send every request to an origin this page holds no session cookie
+ * for — a device that logs in fine and then sees no data. In the Vite dev server, relative
+ * URLs go through its proxy (see vite.shared.ts).
  */
 export const getBackendBaseUrl = (): string => {
+  if (!isElectronApp()) return '';
   try {
     const backendUrl = getSetting('backendUrl');
 
@@ -89,7 +93,8 @@ export const presenterApi = createApi({
     'AdminMigrations',
     'AdminProviders',
     'AdminSongs',
-    'ChurchToolsSongs',
+    'Bands',
+    'DbCopy',
     'Logs',
     'Metrics',
     'PdfAnnotations',
@@ -101,6 +106,7 @@ export const presenterApi = createApi({
     'Shows',
     'Song',
     'Songs',
+    'StageLayers',
     'Styles',
     'ViewerToken',
   ],

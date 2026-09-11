@@ -56,6 +56,8 @@ import {
   ChevronLeft as MoveLeftIcon,
   ChevronRight as MoveRightIcon,
   LocalOffer as TagIcon,
+  Star as FavoriteIcon,
+  StarBorder as NotFavoriteIcon,
   Undo as UndoIcon,
 } from '@mui/icons-material';
 import { useI18nContext } from '@/i18n/i18n-react';
@@ -72,8 +74,8 @@ import {
   useDeleteSetListEntryTagMutation,
   useDeleteSetListMutation,
   useGetSetListsQuery,
-  useRenameSetListMutation,
   useReorderSetListsMutation,
+  useUpdateSetListMutation,
   useSetSetListEntryTagsMutation,
   type SetList,
   type SetListEntry,
@@ -83,6 +85,8 @@ import { Song } from '@/song';
 import { useMetrics } from '@/hooks/useMetrics';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { RowActionMenu } from '@/components/common/RowActionMenu';
+import { BandChips, BandPicker } from '@/components/common/BandPicker';
+import { useBands } from '@/hooks/useBands';
 import { copyTextToClipboard } from '@/utils/clipboard';
 import { SetListTagEditor } from './SetListTagEditor';
 
@@ -179,10 +183,11 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
   const { songs } = useGetSongs();
   const { setLists: setListSettings } = useGetSettings();
   const updateSetting = useUpdateSetting();
+  const { bandNames } = useBands();
 
   const { data: setLists, isLoading, isError } = useGetSetListsQuery(undefined, { skip: !open });
   const [createSetList] = useCreateSetListMutation();
-  const [renameSetList] = useRenameSetListMutation();
+  const [updateSetList] = useUpdateSetListMutation();
   const [deleteSetList] = useDeleteSetListMutation();
   const [reorderSetLists] = useReorderSetListsMutation();
   const [addEntry] = useAddSetListEntryMutation();
@@ -194,7 +199,7 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
   const [activeId, setActiveId] = useState<number | null>(setListSettings.lastOpenedSetListId);
   const [mode, setMode] = useState<SearchMode>('filter');
   const [search, setSearch] = useState('');
-  const [nameDialog, setNameDialog] = useState<{ mode: 'create' | 'rename'; value: string } | null>(null);
+  const [nameDialog, setNameDialog] = useState<{ mode: 'create' | 'rename'; value: string; bandIds: number[] } | null>(null);
   const [deleteListConfirm, setDeleteListConfirm] = useState(false);
   const [tagEditorEntry, setTagEditorEntry] = useState<SetListEntry | null>(null);
   /** Anchor + context for the remove-song / remove-tag choice popover. */
@@ -266,14 +271,38 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
     return set;
   }, [currentShow?.order]);
 
+  // ── Personal favorites ────────────────────────────────────────────────────
+  // Device-local and per set list: a musician stars what they want to practise or suggest.
+  // It never reaches the server, so it cannot change what the operator sees.
+  const favorites = useMemo(
+    () => new Set(activeId != null ? (setListSettings.favoritesBySetListId[String(activeId)] ?? []) : []),
+    [activeId, setListSettings.favoritesBySetListId],
+  );
+  const favoritesOnly = setListSettings.favoritesOnly;
+
+  const toggleFavorite = (songNumber: number) => {
+    if (activeId == null) return;
+    const next = new Set(favorites);
+    if (next.has(songNumber)) next.delete(songNumber);
+    else next.add(songNumber);
+    updateSetting('setLists', {
+      ...setListSettings,
+      favoritesBySetListId: { ...setListSettings.favoritesBySetListId, [String(activeId)]: Array.from(next) },
+    });
+  };
+
+  const setFavoritesOnly = (only: boolean) => updateSetting('setLists', { ...setListSettings, favoritesOnly: only });
+
   // ── Suggestion pools (autocomplete consistency) ───────────────────────────
+  // The account's bands come first: a tag is most often the band that plays the song, and
+  // offering the configured names keeps them spelled the same way across every list.
   const knownTags = useMemo(() => {
-    const names = new Set<string>();
+    const names = new Set<string>(bandNames);
     for (const entry of activeList?.entries ?? []) {
       for (const tag of entry.tags) names.add(tag.tagName);
     }
     return Array.from(names).sort();
-  }, [activeList]);
+  }, [activeList, bandNames]);
 
   const knownKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -303,6 +332,8 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
         const haystack = `${entryTitle(entry)} ${entry.songNumber}`.toLowerCase();
         if (!haystack.includes(query)) continue;
       }
+      // The star narrows the same view the search does, so the two compose.
+      if (favoritesOnly && !favorites.has(entry.songNumber)) continue;
       if (entry.tags.length === 0) {
         bySection.set(UNTAGGED, [...(bySection.get(UNTAGGED) ?? []), { entry, assignment: null }]);
         continue;
@@ -323,7 +354,7 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
       label: name === UNTAGGED ? LL.SET_LISTS.UNTAGGED() : name,
       rows: (bySection.get(name) ?? []).sort((a, b) => entryTitle(a.entry).localeCompare(entryTitle(b.entry))),
     }));
-  }, [activeList, mode, search, entryTitle, LL]);
+  }, [activeList, mode, search, entryTitle, favorites, favoritesOnly, LL]);
 
   // ── Accordion state, scoped per set list ──────────────────────────────────
   const accordionState = activeId != null ? (setListSettings.accordionStateBySetListId[String(activeId)] ?? {}) : {};
@@ -554,13 +585,15 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
     const name = nameDialog.value.trim();
     if (!name) return;
     const isCreate = nameDialog.mode === 'create';
+    const bandIds = nameDialog.bandIds;
     setNameDialog(null);
     void runGuarded(async () => {
       if (isCreate) {
-        const created = await createSetList({ name }).unwrap();
+        const created = await createSetList({ name, bandIds }).unwrap();
         if (created?.id) setActiveId(created.id);
       } else if (activeId != null) {
-        await renameSetList({ id: activeId, name }).unwrap();
+        // Name and bands go in one request — the endpoint takes either or both.
+        await updateSetList({ id: activeId, name, bandIds }).unwrap();
       }
     });
   };
@@ -593,6 +626,7 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
     const inAgenda = songNumbersInShow.has(entry.songNumber);
     const usage = usageCounts.get(entry.songNumber) ?? 0;
     const rowTagName = sectionName === UNTAGGED ? null : sectionName;
+    const isFavorite = favorites.has(entry.songNumber);
 
     // Same two chips either way; only their sequence differs by breakpoint (see below).
     // The order name is capped so a long one ellipsizes inside its chip instead of
@@ -613,17 +647,23 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
           bgcolor: inAgenda ? alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.18 : 0.12) : 'transparent',
           border: '1px solid',
           borderColor: inAgenda ? alpha(theme.palette.success.main, 0.5) : 'transparent',
-          // Clear the absolutely-positioned actions: 92px for the desktop pair (2 × 30px + 4px
+          // Clear the absolutely-positioned actions: 126px for the desktop trio (3 × 30px + 2 × 4px
           // gap + MUI's 16px secondaryAction inset), 48px for the single overflow button on mobile.
           // ListItem itself sets 48px on the child button through this very selector, which
           // outranks an `sx` on the button — so the override has to live here to win the cascade.
-          '& > .MuiListItemButton-root': { pr: { xs: '48px', sm: '92px' } },
+          '& > .MuiListItemButton-root': { pr: { xs: '48px', sm: '126px' } },
         })}
         secondaryAction={
           isMobile ? (
             <RowActionMenu
               edge={false}
               actions={[
+                {
+                  key: 'favorite',
+                  label: isFavorite ? LL.SET_LISTS.UNFAVORITE() : LL.SET_LISTS.FAVORITE(),
+                  icon: isFavorite ? <FavoriteIcon fontSize="small" color="warning" /> : <NotFavoriteIcon fontSize="small" />,
+                  onClick: () => toggleFavorite(entry.songNumber),
+                },
                 {
                   key: 'tags',
                   label: LL.SET_LISTS.EDIT_TAGS(),
@@ -642,6 +682,12 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
             />
           ) : (
             <Stack direction="row" spacing={0.5}>
+              {/* Personal and local: starring a song never leaves this device. */}
+              <Tooltip title={isFavorite ? LL.SET_LISTS.UNFAVORITE() : LL.SET_LISTS.FAVORITE()}>
+                <IconButton size="small" onClick={() => toggleFavorite(entry.songNumber)}>
+                  {isFavorite ? <FavoriteIcon fontSize="small" color="warning" /> : <NotFavoriteIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
               <Tooltip title={LL.SET_LISTS.EDIT_TAGS()}>
                 <IconButton size="small" onClick={() => setTagEditorEntry(entry)}>
                   <TagIcon fontSize="small" />
@@ -757,13 +803,14 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
                     key: 'create',
                     label: LL.SET_LISTS.CREATE(),
                     icon: <AddIcon fontSize="small" />,
-                    onClick: () => setNameDialog({ mode: 'create', value: '' }),
+                    onClick: () => setNameDialog({ mode: 'create', value: '', bandIds: [] }),
                   },
                   {
                     key: 'rename',
                     label: LL.SET_LISTS.RENAME(),
                     icon: <EditIcon fontSize="small" />,
-                    onClick: () => activeList && setNameDialog({ mode: 'rename', value: activeList.name }),
+                    onClick: () =>
+                      activeList && setNameDialog({ mode: 'rename', value: activeList.name, bandIds: activeList.bandIds ?? [] }),
                     hidden: !activeList,
                   },
                   {
@@ -803,7 +850,7 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
             ) : (
               <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                 <Tooltip title={LL.SET_LISTS.CREATE()}>
-                  <IconButton size="small" onClick={() => setNameDialog({ mode: 'create', value: '' })}>
+                  <IconButton size="small" onClick={() => setNameDialog({ mode: 'create', value: '', bandIds: [] })}>
                     <AddIcon />
                   </IconButton>
                 </Tooltip>
@@ -828,7 +875,10 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
                       </span>
                     </Tooltip>
                     <Tooltip title={LL.SET_LISTS.RENAME()}>
-                      <IconButton size="small" onClick={() => setNameDialog({ mode: 'rename', value: activeList.name })}>
+                      <IconButton
+                        size="small"
+                        onClick={() => setNameDialog({ mode: 'rename', value: activeList.name, bandIds: activeList.bandIds ?? [] })}
+                      >
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -854,6 +904,14 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
               </Stack>
             )}
           </Stack>
+
+          {/* Who plays this list. Read-only here; the picker lives in the rename dialog,
+              where the list's own properties are edited. */}
+          {activeList && (activeList.bandIds?.length ?? 0) > 0 && (
+            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}>
+              <BandChips bandIds={activeList.bandIds} max={4} />
+            </Stack>
+          )}
 
           {errorMsg && (
             <Alert severity="error" onClose={() => setErrorMsg(null)}>
@@ -908,6 +966,20 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
                 },
               }}
             />
+            {/* Narrows the list to what this device has starred. Sits next to the search
+                field because it is the same kind of narrowing, just a saved one. */}
+            <Tooltip title={favoritesOnly ? LL.SET_LISTS.FAVORITES_SHOW_ALL() : LL.SET_LISTS.FAVORITES_ONLY()}>
+              <span>
+                <IconButton
+                  size="small"
+                  color={favoritesOnly ? 'warning' : 'default'}
+                  disabled={!activeList}
+                  onClick={() => setFavoritesOnly(!favoritesOnly)}
+                >
+                  {favoritesOnly ? <FavoriteIcon fontSize="small" /> : <NotFavoriteIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
             <Tooltip title={LL.SET_LISTS.USAGE_SLIDER({ count: usageShowCount })}>
               <IconButton size="small" onClick={(e) => setUsageAnchor(e.currentTarget)}>
                 <UsageIcon fontSize="small" />
@@ -935,7 +1007,11 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
             ) : lists.length === 0 ? (
               <Stack spacing={2} sx={{ alignItems: 'center', p: 4, textAlign: 'center' }}>
                 <Typography color="text.secondary">{LL.SET_LISTS.EMPTY_NO_LISTS()}</Typography>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={() => setNameDialog({ mode: 'create', value: '' })}>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => setNameDialog({ mode: 'create', value: '', bandIds: [] })}
+                >
                   {LL.SET_LISTS.CREATE()}
                 </Button>
               </Stack>
@@ -981,7 +1057,11 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
             ) : sections.length === 0 ? (
               // ── Filter mode empty states ──
               <Typography sx={{ p: 3, color: 'text.secondary' }}>
-                {search.trim() ? LL.SET_LISTS.EMPTY_FILTER({ query: search.trim() }) : LL.SET_LISTS.EMPTY_SET_LIST()}
+                {favoritesOnly
+                  ? LL.SET_LISTS.EMPTY_FAVORITES()
+                  : search.trim()
+                    ? LL.SET_LISTS.EMPTY_FILTER({ query: search.trim() })
+                    : LL.SET_LISTS.EMPTY_SET_LIST()}
               </Typography>
             ) : (
               sections.map((section) => (
@@ -1101,20 +1181,29 @@ export const SetListManager = ({ open, onClose }: SetListManagerProps) => {
       <Dialog open={!!nameDialog} onClose={() => setNameDialog(null)} maxWidth="xs" fullWidth>
         <DialogTitle>{nameDialog?.mode === 'rename' ? LL.SET_LISTS.RENAME() : LL.SET_LISTS.CREATE()}</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            fullWidth
-            label={LL.COMMON.NAME()}
-            value={nameDialog?.value ?? ''}
-            onChange={(e) => setNameDialog((d) => (d ? { ...d, value: e.target.value } : d))}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleNameSubmit();
-              }
-            }}
-          />
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <TextField
+              autoFocus
+              margin="dense"
+              fullWidth
+              label={LL.COMMON.NAME()}
+              value={nameDialog?.value ?? ''}
+              onChange={(e) => setNameDialog((d) => (d ? { ...d, value: e.target.value } : d))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleNameSubmit();
+                }
+              }}
+            />
+            {/* Which bands work from this list. Nothing is filtered by it — it labels the
+                list and feeds the tag suggestions with the right names. */}
+            <BandPicker
+              value={nameDialog?.bandIds ?? []}
+              onChange={(bandIds) => setNameDialog((d) => (d ? { ...d, bandIds } : d))}
+              label={LL.BANDS.ASSIGN_LABEL()}
+            />
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setNameDialog(null)}>{LL.COMMON.CANCEL()}</Button>

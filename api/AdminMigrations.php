@@ -824,6 +824,98 @@ class AdminMigrations extends RestController
                     echo "Converted {$converted} style(s) to language slots\n";
                 },
             ],
+
+            22 => [
+                'description' => 'Add stage_layers table for the stage monitor cue system',
+                'up' => function (mysqli $db) use ($tableExists) {
+                    if ($tableExists('stage_layers')) {
+                        return;
+                    }
+                    // A layer is a placed band on the presentation output holding an ordered
+                    // list of cues (clock / countdown / count-up / message). The cues live in
+                    // `data` rather than a table of their own: they are only ever read and
+                    // written as a whole layer, exactly like `styles`.`data`.
+                    $db->query("
+                        CREATE TABLE `stage_layers` (
+                            `id` INT AUTO_INCREMENT PRIMARY KEY,
+                            `account` INT NOT NULL,
+                            `name` VARCHAR(200) NOT NULL,
+                            `enabled` TINYINT(1) DEFAULT 1,
+                            `sort_order` INT NOT NULL DEFAULT 0,
+                            `data` JSON NOT NULL,
+                            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                            UNIQUE KEY `uk_stage_layers_account_name` (`account`, `name`),
+                            CONSTRAINT `fk_stage_layers_account` FOREIGN KEY (`account`)
+                                REFERENCES `account` (`license`) ON DELETE CASCADE
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+                    ");
+                    echo "Created table: stage_layers\n";
+                },
+            ],
+
+            23 => [
+                'description' => 'Add bands and their assignment to shows and set lists',
+                'up' => function (mysqli $db) use ($tableExists) {
+                    // A band is the group of people that plays a show. Until now one only
+                    // existed implicitly, as the name of a song order ("Youth Band [G]"),
+                    // so it could not be named, coloured or listed anywhere on its own.
+                    if (!$tableExists('bands')) {
+                        $db->query("
+                            CREATE TABLE `bands` (
+                                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                                `account` INT NOT NULL,
+                                `name` VARCHAR(200) NOT NULL,
+                                `color` VARCHAR(20) DEFAULT NULL,
+                                `members` JSON DEFAULT NULL,
+                                `sort_order` INT NOT NULL DEFAULT 0,
+                                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                UNIQUE KEY `uk_bands_account_name` (`account`, `name`),
+                                CONSTRAINT `fk_bands_account` FOREIGN KEY (`account`)
+                                    REFERENCES `account` (`license`) ON DELETE CASCADE
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+                        ");
+                        echo "Created table: bands\n";
+                    }
+
+                    // Several bands can share one show or one set list, so the assignment is
+                    // a join table. Both sides cascade: dropping a band takes its assignments
+                    // with it and leaves the shows themselves untouched.
+                    if (!$tableExists('show_bands')) {
+                        $db->query("
+                            CREATE TABLE `show_bands` (
+                                `account` INT NOT NULL,
+                                `show_title` VARCHAR(200) NOT NULL,
+                                `band_id` INT NOT NULL,
+                                PRIMARY KEY (`account`, `show_title`, `band_id`),
+                                KEY `idx_show_bands_band` (`band_id`),
+                                CONSTRAINT `fk_show_bands_show` FOREIGN KEY (`account`, `show_title`)
+                                    REFERENCES `shows` (`account`, `title`) ON DELETE CASCADE,
+                                CONSTRAINT `fk_show_bands_band` FOREIGN KEY (`band_id`)
+                                    REFERENCES `bands` (`id`) ON DELETE CASCADE
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+                        ");
+                        echo "Created table: show_bands\n";
+                    }
+
+                    if ($tableExists('set_lists') && !$tableExists('set_list_bands')) {
+                        $db->query("
+                            CREATE TABLE `set_list_bands` (
+                                `set_list_id` INT NOT NULL,
+                                `band_id` INT NOT NULL,
+                                PRIMARY KEY (`set_list_id`, `band_id`),
+                                KEY `idx_set_list_bands_band` (`band_id`),
+                                CONSTRAINT `fk_slb_set_list` FOREIGN KEY (`set_list_id`)
+                                    REFERENCES `set_lists` (`id`) ON DELETE CASCADE,
+                                CONSTRAINT `fk_slb_band` FOREIGN KEY (`band_id`)
+                                    REFERENCES `bands` (`id`) ON DELETE CASCADE
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+                        ");
+                        echo "Created table: set_list_bands\n";
+                    }
+                },
+            ],
         ];
     }
 }

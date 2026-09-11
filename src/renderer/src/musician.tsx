@@ -3,7 +3,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 
 import { StrictMode, useMemo, useEffect, useState, type ErrorInfo } from 'react';
-import { createRoot } from 'react-dom/client';
+import { mountRoot } from './mountRoot';
 import { ThemeProvider, CssBaseline, Box, CircularProgress } from '@mui/material';
 import { Provider } from 'react-redux';
 import { store } from '@/store';
@@ -68,7 +68,7 @@ const MusicianApp = () => {
   );
 };
 
-createRoot(document.getElementById('root')!).render(
+mountRoot(
   <StrictMode>
     <Provider store={store}>
       <MusicianApp />

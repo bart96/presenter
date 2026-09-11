@@ -4,13 +4,24 @@
 node_modules
 dist
 dist-app
+dist-dev
 out
 .DS_Store
 .eslintcache
 *.log*
 
+# Rewritten by every `npm run typecheck`.
+*.tsbuildinfo
+
+# Reference download, ~23 MB. Nothing in the build reads it.
+churchtools.openapi.json
+
 config.php
-error.log
+copy.config.php
 
 # Annotated captures written by `npm run test:screens`
 test/viewport/screenshots
+
+# Local copy for exercising the dev-only endpoint against the repo dev server;
+# the tracked original lives in dev-environment/.
+api/DbCopy.php

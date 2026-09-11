@@ -18,7 +18,7 @@
  * full-page "reconnecting" overlay whenever the relay connection is down.
  */
 import { StrictMode, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { mountRoot } from './mountRoot';
 
 interface AgendaEntry {
   type: string;
@@ -617,7 +617,6 @@ const ControlApp = () => {
     }
     const t = setTimeout(() => setAppliedCommands(remoteCommandsRef.current), 350);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteCommandsKey]);
 
   // Collapse any open panel when the connection drops (stale agenda/order otherwise).
@@ -949,13 +948,7 @@ const ControlApp = () => {
         >
           {phase !== 'error' && !droppedByOperator && <div className="ctl-spinner" />}
           <div style={{ fontSize: 17, fontWeight: 600, color: C.text }}>
-            {droppedByOperator
-              ? T.droppedByOperator
-              : phase === 'error'
-                ? errorMsg
-                : phase === 'loading'
-                  ? T.connecting
-                  : T.reconnecting}
+            {droppedByOperator ? T.droppedByOperator : phase === 'error' ? errorMsg : phase === 'loading' ? T.connecting : T.reconnecting}
           </div>
           {(phase === 'error' || droppedByOperator) && (
             <button
@@ -982,7 +975,7 @@ const ControlApp = () => {
   );
 };
 
-createRoot(document.getElementById('root')!).render(
+mountRoot(
   <StrictMode>
     <ControlApp />
   </StrictMode>,

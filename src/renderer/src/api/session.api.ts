@@ -16,6 +16,8 @@ export type SessionInfo = {
   isAuthenticated?: boolean;
   authType?: 'oidc' | 'oidc_admin' | null;
   settings?: {
+    /** `DEVELOPMENT` in the backend's config.php. Drives the dev banner — see devBanner.ts. */
+    development?: boolean;
     bibleEnabled: boolean;
     churchToolsEnabled?: boolean;
     wsHost?: WsHost;

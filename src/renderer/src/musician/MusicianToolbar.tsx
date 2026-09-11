@@ -24,6 +24,7 @@ import {
   MultipleStop as OrderIcon,
   CloudSync as RefreshContentIcon,
   Autorenew as AutoRefreshIcon,
+  Tune as MixerIcon,
 } from '@mui/icons-material';
 import { alpha, type Palette } from '@mui/material/styles';
 import { useI18nContext } from '@/i18n/i18n-react';
@@ -147,6 +148,15 @@ interface MusicianToolbarProps {
   onToggleAutoRefresh?: () => void;
   orderEditorOpen?: boolean;
   onToggleOrderEditor?: () => void;
+  /**
+   * The operator is offering monitor mixing to this musician. False also covers "no
+   * operator online yet", so the button appears when the answer arrives rather than
+   * sitting there doing nothing.
+   */
+  mixerAvailable?: boolean;
+  /** The mixer is on screen — lights the button, as every other stateful one here does. */
+  mixerOpen?: boolean;
+  onToggleMixer?: () => void;
 }
 
 export const MusicianToolbar = ({
@@ -175,6 +185,9 @@ export const MusicianToolbar = ({
   onToggleAutoRefresh,
   orderEditorOpen,
   onToggleOrderEditor,
+  mixerAvailable,
+  mixerOpen,
+  onToggleMixer,
 }: MusicianToolbarProps) => {
   const { LL } = useI18nContext();
   const { palette } = useTheme();
@@ -371,6 +384,23 @@ export const MusicianToolbar = ({
             }}
             active={sidebarOpen}
           />
+
+          {/* Monitor mixer — only when the operator has one to offer. Pressing it is what
+              downloads the mixer chunk; until then nothing of it has been fetched. */}
+          {mixerAvailable && (
+            <FloatingButton
+              icon={<MixerIcon fontSize="small" />}
+              tooltip={LL.MIXER.TITLE()}
+              active={mixerOpen}
+              onClick={() => {
+                trackEvent('musician_button_clicked', undefined, undefined, {
+                  button: 'monitor_mixer',
+                  value: mixerOpen ? 'close' : 'open',
+                });
+                onToggleMixer?.();
+              }}
+            />
+          )}
 
           {/* Fullscreen */}
           <FloatingButton

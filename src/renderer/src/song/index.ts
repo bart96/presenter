@@ -104,4 +104,3 @@ export const countPrimaryLines = (lines: string[], declaredPrimary?: string): nu
 
   return lines.filter((line) => isPrimaryLine(line, primary)).length;
 };
-

@@ -24,6 +24,15 @@ export interface SetListsSettings {
   accordionStateBySetListId: Record<string, Record<string, boolean>>;
   /** How many of the most recently saved shows feed the per-song usage counts (1–20). */
   usageShowCount: number;
+  /**
+   * setListId → starred song numbers. Personal and device-local by design: a musician marks
+   * what they want to practise or suggest, which is nobody else's business and must not
+   * change what the list looks like for the operator. Scoped per set list, so the same song
+   * can be starred in one list and not in another.
+   */
+  favoritesBySetListId: Record<string, number[]>;
+  /** Whether the manager is currently narrowed to the starred entries of the open list. */
+  favoritesOnly: boolean;
 }
 
 /**
@@ -143,7 +152,55 @@ export const DEFAULT_STYLE_PREVIEW: StylePreviewSample = {
   copyright: 'Public Domain',
 };
 
+/**
+ * Monitor mixing: what this operator machine offers the account's musicians.
+ *
+ * Device-local on purpose. The bridge lives on the venue's LAN, so its address is a
+ * property of *where this laptop is standing*, not of the account — a second campus with
+ * its own desk needs its own answer, and a single account-wide setting would have the two
+ * overwrite each other every service. The musicians never see any of this directly: they
+ * ask the operator, and the operator answers with a {@link MixerAnnouncement} built from
+ * these fields.
+ */
+export interface AudioMixerSettings {
+  /** Master switch. Off means musicians are told there is no mixer, whatever else is set. */
+  enabled: boolean;
+  /** Host running Streamer's audio bridge — a LAN name or address, or `localhost`. */
+  host: string;
+  port: number;
+  /** Shared secret, when the bridge is configured to want one. Empty means none. */
+  secret: string;
+  /**
+   * Bus ids musicians may pick, e.g. `['bus1', 'bus2']`.
+   *
+   * An allow-list rather than a block-list because the desk decides what exists: an X32
+   * publishes all sixteen buses, and on this desk buses 13–16 are the FX sends. Offering
+   * a guitarist "Fx 2 (R)" as somewhere to listen is noise at best. Empty means no buses,
+   * which — with `allowMain` off — is how the feature stays inert until it is set up.
+   */
+  buses: string[];
+  /** Musicians may select the main mix. Its sends are the front-of-house faders. */
+  allowMain: boolean;
+  /** Musicians may mute the main. Separate: this one silences the room. */
+  allowMainMute: boolean;
+  /** Musicians may mute a bus master — their own wedge. */
+  allowMixMute: boolean;
+  /**
+   * Musicians may use the global strip mutes (the mute that takes a channel out of every
+   * mix, including the main). The device has to opt in as well — see the musician's own
+   * `mixerShowStripMutes`. Both, because "is this a useful button or a loaded gun"
+   * depends on whether a tech or a guitarist is holding the phone.
+   */
+  allowStripMutes: boolean;
+  /** Musicians may toggle mute groups. Off by default: a mute group affects everyone. */
+  allowMuteGroups: boolean;
+  /** Musicians may receive meters. Costs relay bandwidth, so it can be switched off. */
+  allowMeters: boolean;
+}
+
 export interface SettingsState {
+  /** Monitor mixing over Streamer's audio bridge — see {@link AudioMixerSettings}. */
+  audioMixer: AudioMixerSettings;
   autoCheckUpdates: boolean;
   autoLogin: boolean;
   backendUrl: string;
@@ -172,6 +229,13 @@ export interface SettingsState {
   notificationCount: number;
   notificationTime: number;
   offlineMode: boolean;
+  /**
+   * Whether this app instance is the one driving the show over the WS relay: it broadcasts
+   * its position, answers `get_state` and acts on remote commands. `auto` (the default)
+   * means "yes while I have a presentation window open" — a background instance with no
+   * output is not presenting anything and must not push its stale position onto the peers.
+   */
+  operatorSyncAuthority: 'auto' | 'always' | 'never';
   overrideSongImport: boolean;
   /** Mobile remote (/control): which commands connected devices may trigger. Missing key = allowed. */
   remoteControlCommands: Record<string, boolean>;
@@ -197,7 +261,22 @@ export interface SettingsState {
   windowFooterVisible: boolean;
 }
 
+export const DEFAULT_AUDIO_MIXER: AudioMixerSettings = {
+  enabled: false,
+  host: 'localhost',
+  port: 5003,
+  secret: '',
+  buses: [],
+  allowMain: false,
+  allowMainMute: false,
+  allowMixMute: true,
+  allowStripMutes: false,
+  allowMuteGroups: false,
+  allowMeters: true,
+};
+
 const defaultState: SettingsState = {
+  audioMixer: DEFAULT_AUDIO_MIXER,
   autoCheckUpdates: true,
   autoLogin: false,
   backendUrl: '',
@@ -229,11 +308,12 @@ const defaultState: SettingsState = {
   notificationCount: 4,
   notificationTime: 3500,
   offlineMode: false,
+  operatorSyncAuthority: 'auto',
   overrideSongImport: false,
   remoteControlCommands: {},
   resetBlackOnSwitch: false,
   restoreWindowsOnStart: true,
-  setLists: { lastOpenedSetListId: null, accordionStateBySetListId: {}, usageShowCount: 8 },
+  setLists: { lastOpenedSetListId: null, accordionStateBySetListId: {}, usageShowCount: 8, favoritesBySetListId: {}, favoritesOnly: false },
   stylePreview: DEFAULT_STYLE_PREVIEW,
   showDeleteFromDb: false,
   showLicenseNumber: true,
@@ -254,11 +334,15 @@ const defaultState: SettingsState = {
 /** The value every setting falls back to — the UI compares against this to offer a reset. */
 export const SETTINGS_DEFAULTS: Readonly<SettingsState> = defaultState;
 
-let initialState: SettingsState = { ...defaultState };
-try {
-  const settings = localStorage.getItem(SETTINGS_KEY);
-  if (settings) {
-    const parsed = JSON.parse(settings);
+/**
+ * Stored settings, normalized onto the current defaults. Runs when the module loads, and
+ * again whenever another window of the app rewrites the key (see storageSync).
+ */
+export const readStoredSettings = (raw: string | null): SettingsState => {
+  const result: SettingsState = { ...defaultState };
+  try {
+    if (!raw) return result;
+    const parsed = JSON.parse(raw);
     // Migrate old standalone device_id key if not yet in settings
     if (!parsed.deviceId) {
       const legacyId = localStorage.getItem('presenter_device_id');
@@ -267,43 +351,68 @@ try {
         localStorage.removeItem('presenter_device_id');
       }
     }
-    initialState = { ...defaultState, ...parsed };
+    Object.assign(result, parsed);
     // The spread above is shallow, so a settings file written before this key existed (or a
     // partial one) would leave `setLists` half-formed. Rebuild it from the defaults.
-    initialState.setLists = {
+    result.setLists = {
       ...defaultState.setLists,
       ...(typeof parsed.setLists === 'object' && parsed.setLists !== null ? parsed.setLists : {}),
     };
-    if (typeof initialState.setLists.accordionStateBySetListId !== 'object' || initialState.setLists.accordionStateBySetListId === null) {
-      initialState.setLists.accordionStateBySetListId = {};
+    if (typeof result.setLists.accordionStateBySetListId !== 'object' || result.setLists.accordionStateBySetListId === null) {
+      result.setLists.accordionStateBySetListId = {};
     }
+    if (typeof result.setLists.favoritesBySetListId !== 'object' || result.setLists.favoritesBySetListId === null) {
+      result.setLists.favoritesBySetListId = {};
+    }
+    // Same story for the mixer block, and it matters more here: a half-formed one would
+    // leave a permission `undefined`, which reads as "not allowed" in the announcement but
+    // as "nothing to render" in the settings panel — a switch that looks off and cannot be
+    // turned on. Rebuilt from the defaults, with `buses` forced back to an array.
+    result.audioMixer = {
+      ...DEFAULT_AUDIO_MIXER,
+      ...(typeof parsed.audioMixer === 'object' && parsed.audioMixer !== null ? parsed.audioMixer : {}),
+    };
+    if (!Array.isArray(result.audioMixer.buses)) result.audioMixer.buses = [];
     // The preview sample is only merged when it came from *this* build's shipped sample.
     // Anything older is replaced outright — see STYLE_PREVIEW_VERSION for why.
     const storedPreview = typeof parsed.stylePreview === 'object' && parsed.stylePreview !== null ? parsed.stylePreview : {};
 
     if (storedPreview.version === STYLE_PREVIEW_VERSION) {
-      initialState.stylePreview = { ...freshStylePreview(), ...storedPreview };
+      result.stylePreview = { ...freshStylePreview(), ...storedPreview };
 
       // Same shallow-spread problem one level down: a stored half of an array would render an
       // empty preview with no way to tell why.
-      if (!Array.isArray(initialState.stylePreview.languages) || initialState.stylePreview.languages.length === 0) {
-        initialState.stylePreview.languages = freshStylePreview().languages;
+      if (!Array.isArray(result.stylePreview.languages) || result.stylePreview.languages.length === 0) {
+        result.stylePreview.languages = freshStylePreview().languages;
       }
       // Panes are rebuilt rather than trusted: one missing a pane would make that preview
       // unreachable with no way to get it back.
-      const storedPanes = Array.isArray(initialState.stylePreview.panes) ? initialState.stylePreview.panes : [];
+      const storedPanes = Array.isArray(result.stylePreview.panes) ? result.stylePreview.panes : [];
       const known = storedPanes.filter((pane) => pane && STYLE_PREVIEW_PANES.includes(pane.id));
-      initialState.stylePreview.panes = [
+      result.stylePreview.panes = [
         ...known,
         ...DEFAULT_STYLE_PREVIEW.panes.filter((fallback) => !known.some((pane) => pane.id === fallback.id)),
       ];
     } else {
-      initialState.stylePreview = freshStylePreview();
+      result.stylePreview = freshStylePreview();
     }
+    return result;
+  } catch {
+    console.log('Failed to load settings from localStorage, using defaults');
+    return { ...defaultState };
   }
-} catch {
-  console.log('Failed to load settings from localStorage, using defaults');
-}
+};
+
+const readInitialSettings = (): SettingsState => {
+  try {
+    return readStoredSettings(localStorage.getItem(SETTINGS_KEY));
+  } catch {
+    // Storage blocked altogether.
+    return { ...defaultState };
+  }
+};
+
+const initialState: SettingsState = readInitialSettings();
 
 export const settingsSlice = createSlice({
   name: 'settings',
@@ -313,6 +422,17 @@ export const settingsSlice = createSlice({
       const { key, value } = action.payload;
       (state as any)[key] = value;
       persistState(SETTINGS_KEY, state);
+    },
+    /**
+     * Take over what another window stored. Not persisted: it already is (see storageSync).
+     *
+     * `cachedStyles` stays when the incoming copy has none — the storage-full evictor strips
+     * them from the stored blob only, so an empty list there does not mean they are gone.
+     */
+    hydrateSettings: (state, action: PayloadAction<SettingsState>) => {
+      const next = action.payload;
+      const cachedStyles = next.cachedStyles.length === 0 && state.cachedStyles.length > 0 ? state.cachedStyles : next.cachedStyles;
+      Object.assign(state, next, { cachedStyles });
     },
   },
 });

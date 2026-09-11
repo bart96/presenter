@@ -24,6 +24,7 @@ import {
   PictureAsPdf as PdfIcon,
   ListAlt as ListAltIcon,
   Cable as MidiIcon,
+  Tune as MixerIcon,
 } from '@mui/icons-material';
 import { useUpdateMusicianSetting } from '@/store/musicianSlice';
 import { useI18nContext } from '@/i18n/i18n-react';
@@ -72,6 +73,10 @@ interface MusicianSettingsProps {
   blockIndicator: boolean;
   textSize: number;
   showFooter: boolean;
+  /** Open the monitor mixer as a bottom panel rather than full screen. */
+  mixerCompact: boolean;
+  /** The operator is offering monitor mixing; without one the row above means nothing. */
+  mixerAvailable: boolean;
   musicianNames: string[];
   availableBands: string[];
   setQrOpen: (open: boolean) => void;
@@ -90,6 +95,8 @@ export const MusicianSettings = ({
   blockIndicator,
   textSize,
   showFooter,
+  mixerCompact,
+  mixerAvailable,
   musicianNames,
   availableBands,
   setQrOpen,
@@ -147,6 +154,15 @@ export const MusicianSettings = ({
           switchChecked={showFooter}
           onSwitchChange={(checked) => updateMusicianSetting('musicianShowFooter', checked)}
         />
+
+        {mixerAvailable && (
+          <Setting
+            icon={<MixerIcon fontSize="small" />}
+            label={LL.MUSICIAN.MIXER_COMPACT()}
+            switchChecked={mixerCompact}
+            onSwitchChange={(checked) => updateMusicianSetting('mixerCompact', checked)}
+          />
+        )}
 
         <Divider />
 

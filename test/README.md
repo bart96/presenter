@@ -9,6 +9,9 @@ Tooling for running and inspecting the app without a real backend.
   `npm run test:lyrics`. Pure node, no server needed.
 - `styles/` — unit tests for the style editor's pure helpers (CSS box shorthand, the custom-CSS
   tokeniser), run with `npm run test:styles`. Pure node, no server needed.
+- `shutdown/` — checks that the app stops itself within its budget when asked (window close,
+  signal, or the loopback stop command), run with `npm run test:shutdown`. Pure node; takes ~11s
+  because two checks wait out the real timeouts.
 - `viewport/` — small-screen layout test: drives the app in a headless browser at phone size
   and fails on anything that does not fit, run with `npm run test:screens`. See
   [viewport/README.md](viewport/README.md).

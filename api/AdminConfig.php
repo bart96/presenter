@@ -55,6 +55,12 @@ class AdminConfig extends RestController
                 'verseEndpoint'       => defined('BIBLE_API') && is_array(BIBLE_API) ? (BIBLE_API['verse_endpoint'] ?? null) : null,
                 // api_key intentionally omitted
             ],
+            // Endpoints that only exist on a dev deployment. The admin panel uses this to
+            // decide what to offer, rather than probing for a /rest/… path that 404s (and
+            // logs) everywhere else. See api/DbCopy.php.
+            'devTools' => [
+                'dbCopy' => is_file(__DIR__ . '/DbCopy.php') && is_file(__DIR__ . '/../copy.config.php'),
+            ],
             'wsHost' => defined('WS_HOST') && is_array(WS_HOST) && !empty(WS_HOST['host'])
                 ? [
                   'wss'  => !empty(WS_HOST['wss']),

@@ -284,7 +284,7 @@ const ensureAutoSaveListener = (v: HTMLVideoElement) => {
       // Treat volumechange from the element as a user action (immediate save)
       persistSavedVolumeForElement(v, val, v.muted ?? false, true);
       log('auto-saved volume via volumechange', val, v);
-    } catch (e) {
+    } catch (_e) {
       /* ignore */
     }
   };
@@ -394,7 +394,7 @@ export const playWithFade = (v: HTMLVideoElement, fadeDuration: number) => {
     const src = (v.currentSrc || v.src || '').toString();
     const explicitEl = savedVolumes.get(v);
     const explicitSrc = src ? savedVolumesBySrc.get(src) : undefined;
-    let explicit = explicitEl !== undefined ? explicitEl : explicitSrc;
+    const explicit = explicitEl !== undefined ? explicitEl : explicitSrc;
     const lastEl = lastNonZeroVolumes.get(v);
     const lastSrc = src ? lastNonZeroBySrc.get(src) : undefined;
     const last = lastEl !== undefined ? lastEl : lastSrc;

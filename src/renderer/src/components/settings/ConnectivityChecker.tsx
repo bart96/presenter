@@ -21,6 +21,10 @@ import { useGetSessionQuery, useLazyGetSessionQuery } from '@/api/session.api';
 import { presenterApi, getBackendBaseUrl } from '@/api/base.api';
 import { useAppDispatch } from '@/store';
 import { useUpdateSetting, useGetSettings } from '@/store/settingsSlice';
+import { isElectronApp } from '@/utils';
+
+/** Only the desktop app has a backend address of its own to configure. */
+const isDesktop = isElectronApp();
 
 /** Context that lets any descendant open the backend-config dialog. */
 export const BackendConfigContext = createContext<{ openDialog: () => void }>({ openDialog: () => {} });
@@ -188,29 +192,35 @@ export const ConnectivityChecker = ({ children }: { children?: ReactNode }) => {
                 color: 'text.secondary',
               }}
             >
-              {LL.CONNECTIVITY.MESSAGE()}
+              {isDesktop ? LL.CONNECTIVITY.MESSAGE() : LL.CONNECTIVITY.MESSAGE_WEB()}
             </Typography>
 
-            <TextField
-              label={LL.SETTINGS.OPTIONS.BACKEND_URL.TITLE()}
-              value={urlInput}
-              onChange={(e) => {
-                setUrlInput(e.target.value);
-                setTestResult(null);
-              }}
-              fullWidth
-              autoFocus
-              placeholder="https://example.com"
-              helperText={LL.SETTINGS.OPTIONS.BACKEND_URL.DESCRIPTION()}
-            />
+            {/* Only the desktop app has a backend address to change — the browser build always
+                talks to the server it was loaded from (see getBackendBaseUrl). */}
+            {isDesktop && (
+              <>
+                <TextField
+                  label={LL.SETTINGS.OPTIONS.BACKEND_URL.TITLE()}
+                  value={urlInput}
+                  onChange={(e) => {
+                    setUrlInput(e.target.value);
+                    setTestResult(null);
+                  }}
+                  fullWidth
+                  autoFocus
+                  placeholder="https://example.com"
+                  helperText={LL.SETTINGS.OPTIONS.BACKEND_URL.DESCRIPTION()}
+                />
 
-            {testResult && (
-              <Alert severity={testResult.ok ? 'success' : 'error'} variant="outlined">
-                {testResult.message}
-              </Alert>
+                {testResult && (
+                  <Alert severity={testResult.ok ? 'success' : 'error'} variant="outlined">
+                    {testResult.message}
+                  </Alert>
+                )}
+
+                <Divider />
+              </>
             )}
-
-            <Divider />
 
             <Stack
               direction="row"
@@ -237,16 +247,20 @@ export const ConnectivityChecker = ({ children }: { children?: ReactNode }) => {
           <Button onClick={() => setDialogOpen(false)} color="inherit">
             {LL.COMMON.CANCEL()}
           </Button>
-          <Button
-            onClick={() => testBackendUrl(urlInput)}
-            disabled={testing || !urlInput.trim()}
-            startIcon={testing ? <CircularProgress size={16} /> : undefined}
-          >
-            {LL.CONNECTIVITY.TEST()}
-          </Button>
-          <Button onClick={applyUrl} variant="contained" disabled={!testResult?.ok}>
-            {LL.CONNECTIVITY.APPLY_AND_RELOAD()}
-          </Button>
+          {isDesktop && (
+            <>
+              <Button
+                onClick={() => testBackendUrl(urlInput)}
+                disabled={testing || !urlInput.trim()}
+                startIcon={testing ? <CircularProgress size={16} /> : undefined}
+              >
+                {LL.CONNECTIVITY.TEST()}
+              </Button>
+              <Button onClick={applyUrl} variant="contained" disabled={!testResult?.ok}>
+                {LL.CONNECTIVITY.APPLY_AND_RELOAD()}
+              </Button>
+            </>
+          )}
         </DialogActions>
       </Dialog>
       {children}

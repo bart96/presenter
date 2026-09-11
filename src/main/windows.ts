@@ -123,10 +123,7 @@ export class PresentationWindowManager {
             const wc: PresentationContentIPC = {
               ...lastContent,
               displayMode: config.displayMode || lastContent.displayMode,
-              languages:
-                config.languages !== 'all'
-                  ? config.languages.split(',').map((l) => l.trim())
-                  : lastContent.languages,
+              languages: config.languages !== 'all' ? config.languages.split(',').map((l) => l.trim()) : lastContent.languages,
               streamLines: config.streamLines || lastContent.streamLines,
               hideText: config.hideText || lastContent.hideText,
               hideBackground: config.hideBackground || lastContent.hideBackground,
@@ -289,6 +286,20 @@ export class PresentationWindowManager {
     }
 
     this._sendContent(managed, content);
+  }
+
+  /**
+   * Forward the stage overlay to one presentation window.
+   *
+   * Deliberately a plain relay: no dedupe (the renderer already skips unchanged payloads)
+   * and no freeze handling. Freezing holds the *content* on screen so the operator can cue
+   * the next slide unseen — a countdown that stopped ticking because a window was frozen
+   * would be a bug, not the feature.
+   */
+  sendStageOverlay(id: string, payload: unknown): void {
+    const managed = this.windows.get(id);
+    if (!managed || managed.browserWindow.isDestroyed()) return;
+    managed.browserWindow.webContents.send('presentation-stage', payload);
   }
 
   /**

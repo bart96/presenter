@@ -25,9 +25,15 @@ const state = {
   songDetails: structuredClone(fixtures.songDetails),
   shows: structuredClone(fixtures.shows),
   setLists: structuredClone(fixtures.setLists),
+  bands: structuredClone(fixtures.bands),
   /** Viewer token, minted on POST /rest/AccountTokens. Null until one is generated. */
   viewerToken: null,
+  /** Stage-monitor layers. Stateful so cue editing can actually be tried out locally. */
+  stageLayers: [],
 };
+
+let nextStageLayerId = 1;
+let nextBandId = 3;
 
 /** GET /rest/Session — an authenticated, non-admin session for account 1. */
 const session = () => ({
@@ -42,7 +48,21 @@ const session = () => ({
   // `viewerUrl` mirrors VIEWER_URL in config.php. Null by default (the viewer is then
   // assumed to sit under this app's origin); set MOCK_VIEWER_URL to exercise the common
   // real-world case of the viewer living on its own subdomain.
-  settings: { bibleEnabled: true, churchToolsEnabled: true, wsHost: null, viewerUrl: process.env.MOCK_VIEWER_URL ?? null },
+  settings: {
+    // `DEVELOPMENT` in config.php, which raises the dev banner on every page. On by
+    // default here — running against the mock backend is about as dev as it gets. Set
+    // MOCK_DEVELOPMENT=0 to see the pages without it.
+    development: process.env.MOCK_DEVELOPMENT !== '0',
+    bibleEnabled: true,
+    churchToolsEnabled: true,
+    // Null unless MOCK_WS_HOST is set, which points the app at a locally running relay
+    // (`node ws-server/dist/server.js`). Needed to try anything that talks between the
+    // operator and the musician page — sync, the mobile remote, monitor mixing.
+    wsHost: process.env.MOCK_WS_HOST
+      ? { host: process.env.MOCK_WS_HOST, port: Number(process.env.MOCK_WS_PORT ?? 9001), wss: false }
+      : null,
+    viewerUrl: process.env.MOCK_VIEWER_URL ?? null,
+  },
 });
 
 /** Admin session variant: run with MOCK_ADMIN=1 to reach the /admin routes. */
@@ -118,16 +138,112 @@ const handlers = {
       return { message: 'deleted (mock)' };
     }
     if (req.method === 'POST') {
-      const created = { id: Date.now() % 100000, name: req.body?.name ?? 'Neu', sortOrder: state.setLists.length, entries: [] };
+      const created = {
+        id: Date.now() % 100000,
+        name: req.body?.name ?? 'Neu',
+        bandIds: req.body?.bandIds ?? [],
+        sortOrder: state.setLists.length,
+        entries: [],
+      };
       state.setLists.push(created);
       return created;
     }
-    const target = state.setLists.find((l) => l.id === req.body?.id);
-    if (target && req.body?.name) target.name = req.body.name;
+    // PUT /rest/SetLists/{id} — partial: name, bands, or both.
+    const idFromPath = Number(req.path.split('/')[3]);
+    const target = state.setLists.find((l) => l.id === (Number.isFinite(idFromPath) ? idFromPath : req.body?.id));
+    if (target) {
+      if (req.body?.name) target.name = req.body.name;
+      if (req.body?.bandIds !== undefined) target.bandIds = req.body.bandIds;
+    }
     return { message: 'saved (mock)' };
   },
 
+  /** Bands, with real CRUD — the settings editor round-trips every edit through here. */
+  '/rest/Bands': (req) => {
+    const idFromPath = Number(req.path.split('/')[3]);
+
+    if (req.method === 'POST') {
+      const band = {
+        id: nextBandId++,
+        name: req.body?.name ?? 'Band',
+        color: req.body?.color ?? null,
+        members: req.body?.members ?? [],
+        sortOrder: state.bands.length,
+      };
+      state.bands.push(band);
+      return band;
+    }
+
+    if (req.method === 'PUT') {
+      if (req.path.endsWith('/reorder')) {
+        const order = req.body?.order ?? [];
+        state.bands.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+        state.bands.forEach((band, index) => (band.sortOrder = index));
+        return { message: 'Bands reordered', order };
+      }
+      const band = state.bands.find((b) => b.id === idFromPath);
+      // Partial update, exactly like the real endpoint: only the keys that were sent.
+      if (band) {
+        for (const key of ['name', 'color', 'members']) {
+          if (req.body?.[key] !== undefined) band[key] = req.body[key];
+        }
+      }
+      return band ?? { message: 'Band updated' };
+    }
+
+    if (req.method === 'DELETE') {
+      state.bands = state.bands.filter((b) => b.id !== idFromPath);
+      // The real backend cascades the assignments; mirror that so the chips disappear too.
+      for (const show of state.shows) show.bandIds = (show.bandIds ?? []).filter((id) => id !== idFromPath);
+      for (const list of state.setLists) list.bandIds = (list.bandIds ?? []).filter((id) => id !== idFromPath);
+      return { message: 'Band deleted' };
+    }
+
+    return state.bands;
+  },
+
   '/rest/ShowItemTypes': () => [],
+
+  /**
+   * Stage-monitor layers, with real CRUD — a stub returning `[]` would make the panel look
+   * broken, since every edit round-trips through here.
+   */
+  '/rest/StageLayers': (req) => {
+    const idFromPath = Number(req.path.split('/')[3]);
+
+    if (req.method === 'POST') {
+      const layer = {
+        id: nextStageLayerId++,
+        name: req.body?.name ?? 'Stage layer',
+        enabled: req.body?.enabled ?? true,
+        sort_order: req.body?.sort_order ?? state.stageLayers.length,
+        data: req.body?.data ?? { placement: {}, style: {}, cues: [] },
+      };
+      state.stageLayers.push(layer);
+      return { id: layer.id, name: layer.name, enabled: layer.enabled, message: 'Stage layer created' };
+    }
+
+    if (req.method === 'PUT') {
+      const layer = state.stageLayers.find((l) => l.id === idFromPath);
+      // Partial update, exactly like the real endpoint: only the keys that were sent.
+      if (layer) {
+        for (const key of ['name', 'enabled', 'sort_order', 'data']) {
+          if (req.body?.[key] !== undefined) layer[key] = req.body[key];
+        }
+      }
+      return { message: 'Stage layer updated', id: idFromPath };
+    }
+
+    if (req.method === 'DELETE') {
+      state.stageLayers = state.stageLayers.filter((l) => l.id !== idFromPath);
+      return { message: 'Stage layer deleted' };
+    }
+
+    if (Number.isFinite(idFromPath)) {
+      return state.stageLayers.find((l) => l.id === idFromPath) ?? {};
+    }
+    return state.stageLayers;
+  },
   '/rest/Styles': () => [],
   '/rest/PdfAnnotations': () => [],
   '/rest/PdfIcons': () => [],
@@ -139,7 +255,9 @@ const handlers = {
   '/rest/Metrics': () => ({ message: 'recorded (mock)' }),
   '/rest/Log': () => ({ message: 'logged (mock)' }),
   '/rest/ValidateToken': () => ({ valid: true }),
-  '/rest/ChurchToolsEvents': () => [],
+  // The event picker reads `events` off the answer, so a bare [] makes it throw
+  // ("incoming is not iterable") before the new-show dialog can even paint.
+  '/rest/ChurchToolsEvents': () => ({ events: [] }),
   '/rest/ChurchToolsSongs': () => [],
 
   '/rest/AdminAccounts': () => fixtures.adminAccounts,
@@ -168,7 +286,49 @@ const handlers = {
     oidc: { scopes: [] },
     bible: {},
     wsHost: null,
+    // Mirrors a dev deployment carrying dev-environment/DbCopy.php plus a copy.config.php,
+    // which is what makes the "copy from another database" card appear.
+    devTools: { dbCopy: process.env.MOCK_DB_COPY !== '0' },
   }),
+  '/rest/DbCopy': (req) => {
+    const tables = [
+      { name: 'account', rows: 3, mode: 'data' },
+      { name: 'songs', rows: 412, mode: 'data' },
+      { name: 'blocks', rows: 2874, mode: 'data' },
+      { name: 'metrics', rows: 0, mode: 'structure' },
+      { name: 'logs_archive', rows: 0, mode: 'excluded' },
+    ];
+    const replacements = [
+      { from: 'https://presenter.example.com', to: 'https://dev.presenter.example.com' },
+      { from: 'http://presenter.example.com', to: 'https://dev.presenter.example.com' },
+    ];
+    const dataDir = { configured: true, readable: true, source: '/srv/presenter/data', target: '/srv/dev/data' };
+
+    if (req.method !== 'POST') {
+      return {
+        source: { url: 'https://presenter.example.com', host: 'prod-sql', database: 'presenter_prod', schemaVersion: 17 },
+        target: { url: 'https://dev.presenter.example.com', host: 'localhost', database: 'presenter_dev', schemaVersion: 19 },
+        replacements,
+        tables,
+        dataDir,
+      };
+    }
+
+    const dryRun = !!req.body?.dryRun;
+    const copied = tables.filter((t) => t.mode !== 'excluded');
+    return {
+      dryRun,
+      tables: copied,
+      rowsCopied: 3289,
+      replacements,
+      rewrites: dryRun ? [] : [{ column: 'songs.background', rows: 46 }],
+      rowsRewritten: dryRun ? 0 : 46,
+      dataFiles: dryRun ? null : 128,
+      dataDir,
+      schemaVersion: 17,
+      durationMs: 4200,
+    };
+  },
   '/rest/AdminSongs': (req) => {
     if (req.method !== 'POST') return fixtures.adminSongs;
     const { sourceNumber, targetNumber, dryRun } = req.body ?? {};

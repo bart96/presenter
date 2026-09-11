@@ -8,6 +8,7 @@ import { registerIpcHandlers } from './ipc';
 import { LocalMediaServer } from './mediaServer';
 import { PresenterWebSocketServer } from './wsServer';
 import { getCredentials } from './credentials';
+import { ShutdownCoordinator, startControlServer, setShutdownLogFile, CONTROL_PORT } from './shutdown';
 import iconIco from '../../favicon.ico?asset';
 import iconPng from '../../favicon.svg?asset';
 import iconSvg from '../../favicon.svg?asset';
@@ -203,6 +204,53 @@ let mainWindow: BrowserWindow | null = null;
 let backendOrigin = '';
 const wsServer = new PresenterWebSocketServer(9001, windowManager);
 
+// ── Graceful shutdown ──
+// Startup Manager stops us by posting WM_CLOSE to the window and force-kills
+// the process ~15s later, so every stop path — window close, console signal,
+// loopback stop command — funnels into one bounded teardown (see ./shutdown).
+setShutdownLogFile(join(app.getPath('userData'), 'shutdown.log'));
+const shutdown = new ShutdownCoordinator();
+let stopControlServer: (() => Promise<void>) | null = null;
+let persistMainWindowBounds: (() => void) | null = null;
+let shutdownReason = 'window close';
+let quitAllowed = false;
+
+/** Ask for a stop the same way the window close does, so one path handles all of them. */
+const requestShutdown = (reason: string): void => {
+  shutdownReason = reason;
+  app.quit(); // → 'before-quit' → shutdown.run()
+};
+
+// Order matters: stop accepting work, let peers see us go, then persist.
+shutdown.register({ name: 'stop command server', run: () => stopControlServer?.() });
+shutdown.register({
+  name: 'websocket server',
+  run: () => {
+    wsServer.stop();
+  },
+});
+shutdown.register({ name: 'media server', run: () => mediaServer?.stop() });
+shutdown.register({ name: 'window bounds', run: () => persistMainWindowBounds?.() });
+shutdown.register({ name: 'presentation windows', run: () => windowManager.destroyAll() });
+// Chromium commits localStorage lazily, 5–60 s after a change. An orderly quit flushes it,
+// the forced exit in 'before-quit' does not — so force it here, after the child windows are
+// gone and their last writes have arrived.
+shutdown.register({ name: 'local storage', run: () => session.defaultSession.flushStorageData() });
+shutdown.register({ name: 'session cookies', run: () => saveSessionCookies(), timeoutMs: 3000 });
+
+if (gotTheLock) {
+  // Started at module scope, not in whenReady: the stop command is the only
+  // thing that can stop us during the seconds before a window exists.
+  void startControlServer(CONTROL_PORT, requestShutdown).then((stop) => {
+    stopControlServer = stop;
+  });
+
+  // Console signals, for runs started from a terminal.
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGBREAK'] as const) {
+    process.on(signal, () => requestShutdown(signal));
+  }
+}
+
 const getWsHosts = (): string[] => {
   const nets = networkInterfaces();
   const hosts = new Set<string>(['127.0.0.1', 'localhost']);
@@ -257,7 +305,7 @@ const createWindow = () => {
 
   let persistEnabled = false;
   const persistBounds = (): void => {
-    if (!mainWindow || !persistEnabled) return;
+    if (!mainWindow || mainWindow.isDestroyed() || !persistEnabled) return;
     const isMaximized = mainWindow.isMaximized();
     if (isMaximized) {
       // Only update the maximized flag, keep the last normal bounds
@@ -268,6 +316,10 @@ const createWindow = () => {
       saveWindowBounds({ x: b.x, y: b.y, width: b.width, height: b.height, isMaximized: false });
     }
   };
+  // A quit that does not start at the window (stop command, signal) never
+  // fires 'close', so the shutdown sequence persists the bounds itself.
+  persistMainWindowBounds = persistBounds;
+
   // Only save bounds when the user intentionally closes the window.
   // Saving on every move/resize would capture OS-clamped values (e.g. taskbar
   // shrinking the height from 1080 → 1040) and persist the wrong size.
@@ -281,6 +333,18 @@ const createWindow = () => {
       console.error('[Main] Failed to destroy presentation windows on main close:', err);
     }
   });
+
+  // Windows ending the session — shutdown, update restart, log-off — never emits
+  // 'before-quit', so the shutdown sequence does not run and the process is killed moments
+  // later. Save what matters while Windows still waits: 'query-session-end' comes first and
+  // leaves the most time, 'session-end' is the last chance.
+  const persistForSessionEnd = (): void => {
+    session.defaultSession.flushStorageData();
+    persistBounds();
+    void saveSessionCookies();
+  };
+  mainWindow.on('query-session-end', persistForSessionEnd);
+  mainWindow.on('session-end', persistForSessionEnd);
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -352,10 +416,16 @@ const createWindow = () => {
     // window would be left sitting on the website instead of back in the app.
     // `state=logged_out` is what the provider echoes back (the redirect URI itself must
     // stay query-free to match its registration); `logged_out=1` is the older marker.
-    const isLogoutReturn = parsed.searchParams.get('state') === 'logged_out' || parsed.searchParams.get('logged_out') === '1';
+    // `logged_out_reset` is a logout that also asked to wipe local data. It is passed on,
+    // because the local login page is what does the wiping (renderer utils/localDataReset).
+    const logoutState = parsed.searchParams.get('state');
+    const isLogoutReturn =
+      logoutState === 'logged_out' || logoutState === 'logged_out_reset' || parsed.searchParams.get('logged_out') === '1';
     if (isCallbackFromBackend && isLogoutReturn) {
       event.preventDefault();
-      mainWindow!.loadFile(HTML_PATHS['/login'], { query: { switch: '1' } });
+      const query: Record<string, string> = { switch: '1' };
+      if (logoutState === 'logged_out_reset') query.state = logoutState;
+      mainWindow!.loadFile(HTML_PATHS['/login'], { query });
       return;
     }
 
@@ -849,29 +919,36 @@ app.whenReady().then(async () => {
   });
 });
 
-// Quit when all windows are closed, except on macOS.
+// Quit when all windows are closed, except on macOS. Closing the window has to
+// mean closing the app: a window that merely hides is one Startup Manager can
+// only ever kill.
 app.on('window-all-closed', () => {
-  // Clean up servers
-  mediaServer?.stop();
-  wsServer.stop();
-
   if (process.platform !== 'darwin') {
-    app.quit();
+    requestShutdown('window close');
+    return;
   }
+  // macOS keeps the app running without windows — release the servers only.
+  void mediaServer?.stop();
+  wsServer.stop();
 });
 
-// Ensure all child windows are destroyed before quit, and flush session cookies
-// to disk so the user stays logged in on the next launch.
-let isFlushing = false;
+// Single teardown for every quit path: destroy child windows, stop the servers
+// and flush session cookies to disk so the user stays logged in next launch —
+// all of it bounded, so we exit on our own well inside the stop timeout.
 app.on('before-quit', (e) => {
-  wsServer.stop();
-  windowManager.destroyAll();
-
-  if (isFlushing) return; // second call after our explicit app.quit() below
+  if (!gotTheLock) return; // duplicate instance bowing out — it owns none of this
+  if (quitAllowed) return; // teardown already ran; let this quit through
   e.preventDefault();
-  isFlushing = true;
 
-  saveSessionCookies()
-    .catch(() => {})
-    .finally(() => app.quit());
+  void shutdown.run(shutdownReason).then(() => {
+    quitAllowed = true;
+    // Quit rather than exit, so electron-updater still installs a downloaded
+    // update from its own 'quit' handler …
+    app.quit();
+    // … but never wait on it: if anything vetoes the quit, end the process.
+    setTimeout(() => {
+      console.warn('[Shutdown] Quit did not complete — forcing exit');
+      app.exit(0);
+    }, 1500);
+  });
 });

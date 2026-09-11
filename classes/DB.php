@@ -20,7 +20,11 @@ class DB
                     DB['database']
                 );
 
-                self::$db->set_charset("utf8");
+                // utf8mb4, not utf8: MySQL's "utf8" is still utf8mb3, and every table in
+                // install.sql is utf8mb4. On a utf8mb3 connection a four-byte character —
+                // an emoji in a song title, a band name, a style's JSON — is rejected by
+                // strict mode or truncated at the offending byte.
+                self::$db->set_charset('utf8mb4');
             } catch (Exception $e) {
                 throw new Error($e->getMessage());
             }
@@ -77,13 +81,5 @@ class DB
     {
         self::initMysqli();
         return self::$db;
-    }
-
-    // TODO remove
-    public static function error(): void
-    {
-        if (self::$db) {
-            print_r(self::$db->error);
-        }
     }
 }

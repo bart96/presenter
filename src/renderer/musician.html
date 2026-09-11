@@ -4,9 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Presenter - Musician View</title>
+    <!--
+      connect-src carries a bare `ws:` on the four entries that open a socket — this one,
+      admin, control and musician. The relay (WS_HOST) and Streamer's audio bridge are both
+      configured at runtime with a LAN address, and a static policy cannot enumerate those.
+      login.html and presentation.html open no socket and deliberately omit it; do not
+      "make them consistent" by pasting this one over them.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; connect-src 'self' blob: http://localhost:* ws://localhost:* ws: wss: https:; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http: blob:; media-src 'self' https: http: blob:; font-src 'self' https: data:; worker-src 'self' blob:"
+      content="default-src 'self'; connect-src 'self' blob: http://localhost:* http://127.0.0.1:* ws: wss: https:; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http: blob:; media-src 'self' https: http: blob:; font-src 'self' https: data:; worker-src 'self' blob:"
     />
   </head>
 

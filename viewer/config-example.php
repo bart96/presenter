@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Presenter Live Viewer — configuration template.
  *
@@ -24,6 +25,11 @@ return [
     // Viewer token — Settings → General → Viewer Token in the Presenter app.
     // 64 hex characters. Leave empty to require `?token=` on every request.
     'token' => '',
+
+    // Set true on a dev deployment. Paints a striped bar across the top of the page so a
+    // screen showing the dev viewer can never be mistaken for the live one — the two are
+    // otherwise identical, and a projection has no address bar to check.
+    'development' => false,
 
     // WebSocket relay server.
     // Set 'wss' => true when the relay sits behind a TLS-terminating reverse proxy.

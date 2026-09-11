@@ -38,9 +38,25 @@ export const LoginPage = () => {
     }
   }, []);
 
-  // In offline mode, redirect immediately to the intended destination
+  const licenseParam = useQueryParam('license');
+  /**
+   * Set by the logout round-trip. The user came here to pick a DIFFERENT account, so
+   * restoring the previous one, the Electron auto-proceed and the offline redirect below must
+   * all stay out of the way — otherwise the page bounces straight back to the provider (or
+   * into the app) and the account select can never be reached.
+   *
+   * `switch=1` is set by the Electron main process when it catches the return trip; in the
+   * browser the marker is the provider's echoed `state=logged_out` instead, because the
+   * post-logout redirect URI has to stay free of query parameters to remain registrable.
+   */
+  const cameFromLogout = useCameFromLogout();
+  const switchAccount = useQueryParam('switch') === '1' || cameFromLogout;
+
+  // In offline mode, redirect immediately to the intended destination — but not at the end of
+  // a logout. Forwarding there into an app that fetches nothing is how a device ended up
+  // looking signed in while seeing no data, with the offline toggle out of reach.
   useEffect(() => {
-    if (offlineMode) {
+    if (offlineMode && !switchAccount) {
       try {
         const dest = decodeURIComponent(next);
         // In Electron, `next` is a bare filename (e.g. "musician.html") and relative navigation is unreliable — build the full file:// URL.
@@ -49,21 +65,7 @@ export const LoginPage = () => {
         window.location.replace(isElectronApp() ? electronFileUrl('index.html') : '/');
       }
     }
-  }, [offlineMode, next]);
-
-  const licenseParam = useQueryParam('license');
-  /**
-   * Set by the logout round-trip. The user came here to pick a DIFFERENT account, so both
-   * restoring the previous one and the Electron auto-proceed below must stay out of the
-   * way — otherwise the page bounces straight back to the provider and the account select
-   * can never be reached.
-   *
-   * `switch=1` is set by the Electron main process when it catches the return trip; in the
-   * browser the marker is the provider's echoed `state=logged_out` instead, because the
-   * post-logout redirect URI has to stay free of query parameters to remain registrable.
-   */
-  const cameFromLogout = useCameFromLogout();
-  const switchAccount = useQueryParam('switch') === '1' || cameFromLogout;
+  }, [offlineMode, next, switchAccount]);
 
   // License selection - load from localStorage on mount
   const { data: accounts, isLoading: accountsLoading, error: accountsError } = useGetAccountsQuery();

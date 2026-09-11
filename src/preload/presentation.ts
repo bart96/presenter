@@ -24,6 +24,18 @@ const presentationApi = {
   },
 
   /**
+   * Register a callback for stage-overlay updates.
+   *
+   * Separate from `onContentUpdate` on purpose: the overlay has its own lifetime, so a cue
+   * change must not re-send the slide and a slide change must not disturb a running timer.
+   */
+  onStageUpdate: (callback: (data: unknown) => void) => {
+    ipcRenderer.on('presentation-stage', (_event, data) => {
+      callback(data);
+    });
+  },
+
+  /**
    * Tell the main process this window's React app is mounted and listening.
    * Content sent before this point was lost — main replays the last payload on it.
    */
@@ -37,6 +49,7 @@ const presentationApi = {
   removeAllListeners: () => {
     ipcRenderer.removeAllListeners('presentation-update');
     ipcRenderer.removeAllListeners('presentation-command');
+    ipcRenderer.removeAllListeners('presentation-stage');
   },
 
   /**
@@ -63,6 +76,6 @@ if (process.contextIsolated) {
     console.error(error);
   }
 } else {
-  // @ts-ignore
+  // @ts-ignore — no contextIsolation here, so the API is attached to the real window
   window.presentationApi = presentationApi;
 }

@@ -37,6 +37,7 @@ import { useGetSettings } from '@/store/settingsSlice';
 import { useGetSessionQuery } from '@/api/session.api';
 import { type CtEvent } from '@/api/churchtools.api';
 import { EventPicker } from '@/components/show/EventPicker';
+import { BandChips, BandPicker } from '@/components/common/BandPicker';
 import { RowActionMenu } from '@/components/common/RowActionMenu';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { SONG_CUSTOM_NUMBER_LIMIT } from '@/song';
@@ -87,6 +88,8 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
   const [newShowTitle, setNewShowTitle] = useState('');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CtEvent | null>(null);
+  /** Bands picked for the show being created — several may share one service. */
+  const [newShowBands, setNewShowBands] = useState<number[]>([]);
   // Whether the user has manually edited the title (stops auto-resolving from the template).
   const [titleEdited, setTitleEdited] = useState(false);
 
@@ -95,6 +98,7 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
   const [showToRename, setShowToRename] = useState<Show | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
   const [renameEvent, setRenameEvent] = useState<CtEvent | null>(null);
+  const [renameBands, setRenameBands] = useState<number[]>([]);
   // Infinite scroll: start with 10 shows, load 10 more each time the list is scrolled to the end.
   const SHOWS_PAGE_SIZE = 10;
   const [visibleCount, setVisibleCount] = useState(SHOWS_PAGE_SIZE);
@@ -147,6 +151,7 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
       setNewShowTitle('');
       setSelectedShow(null);
       setSelectedEvent(null);
+      setNewShowBands([]);
       setTitleEdited(false);
       setVisibleCount(SHOWS_PAGE_SIZE);
     }
@@ -199,9 +204,11 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
         order: [],
         eventId: selectedEvent?.id ?? null,
         eventName: selectedEvent?.name ?? null,
+        bandIds: newShowBands,
       };
       onShowSelected(newShow, true, false);
       setNewShowTitle('');
+      setNewShowBands([]);
       setIsCreatingNew(false);
       onClose?.();
     }
@@ -240,7 +247,8 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
     }
     const titleChanged = renameTitle.trim() !== showToRename.title;
     const eventChanged = (renameEvent?.id ?? null) !== (showToRename.eventId ?? null);
-    if (!titleChanged && !eventChanged) {
+    const bandsChanged = renameBands.join() !== (showToRename.bandIds ?? []).join();
+    if (!titleChanged && !eventChanged && !bandsChanged) {
       setShowToRename(null);
       return;
     }
@@ -259,6 +267,9 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
         styleId: showToRename.styleId ?? null,
         eventId: renameEvent?.id ?? null,
         eventName: renameEvent?.name ?? null,
+        // Always sent, even unchanged: a rename deletes the old row, and the band
+        // assignments cascade with it. Omitting them here would silently drop them.
+        bandIds: renameBands,
       }).unwrap();
 
       // The save endpoint reconciles the linked event's agenda automatically (the save above
@@ -267,6 +278,7 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
       setShowToRename(null);
       setRenameTitle('');
       setRenameEvent(null);
+      setRenameBands([]);
       refetch();
     } catch (error) {
       console.error('Failed to rename show:', error);
@@ -335,6 +347,15 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
                 placeholder={LL.SHOWS.PLACEHOLDER()}
               />
 
+              {/* Who plays it. Labels the show and preselects the band in the order-name
+                  and tag suggestions while it is open. */}
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  {LL.BANDS.TITLE()}
+                </Typography>
+                <BandPicker value={newShowBands} onChange={setNewShowBands} />
+              </Box>
+
               {/* Optionally link to a ChurchTools event — songs sync to its agenda on save. */}
               {churchToolsEnabled && (
                 <Box>
@@ -400,6 +421,7 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
                           setRenameEvent(
                             show.eventId ? { id: show.eventId, name: show.eventName ?? `#${show.eventId}`, startDate: null } : null,
                           );
+                          setRenameBands(show.bandIds ?? []);
                         };
 
                         // Four unlabelled icons do not fit next to a date-stamped title on a
@@ -563,6 +585,7 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
                                         </Typography>
                                       </>
                                     )}
+                                    <BandChips bandIds={show.bandIds} max={2} />
                                   </Stack>
                                 }
                                 slotProps={{
@@ -628,7 +651,7 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
         <DialogContent>
           <Typography>
             {LL.SHOWS.DELETE_CONFIRMATION_START()}
-            <strong>"{showToDelete}"</strong>?
+            <strong>&quot;{showToDelete}&quot;</strong>?
           </Typography>
           <Typography
             variant="body2"
@@ -655,12 +678,12 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
             {newShowTitle ? (
               <>
                 {LL.SHOWS.SAVE_OVERRIDE_EXISTING()}
-                <strong>"{newShowTitle}"</strong>
+                <strong>&quot;{newShowTitle}&quot;</strong>
               </>
             ) : (
               <>
                 {LL.SHOWS.SAVE_OVERRIDE_TO()}
-                <strong>"{confirmOverride?.title}"</strong>
+                <strong>&quot;{confirmOverride?.title}&quot;</strong>
               </>
             )}
           </Alert>
@@ -705,6 +728,12 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
               }
             }}
           />
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              {LL.BANDS.TITLE()}
+            </Typography>
+            <BandPicker value={renameBands} onChange={setRenameBands} />
+          </Box>
           {churchToolsEnabled && (
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" gutterBottom>
@@ -722,7 +751,10 @@ export const Shows = ({ open, onShowSelected, onClose, allowClose = false, curre
             onClick={handleRenameShow}
             variant="contained"
             disabled={
-              !renameTitle.trim() || (renameTitle === showToRename?.title && (renameEvent?.id ?? null) === (showToRename?.eventId ?? null))
+              !renameTitle.trim() ||
+              (renameTitle === showToRename?.title &&
+                (renameEvent?.id ?? null) === (showToRename?.eventId ?? null) &&
+                renameBands.join() === (showToRename?.bandIds ?? []).join())
             }
           >
             {LL.COMMON.SAVE()}

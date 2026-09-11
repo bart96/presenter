@@ -67,11 +67,13 @@ export type CatalogContext = {
   slots: {
     globalStyle: () => ReactNode;
     showTitleTemplate: () => ReactNode;
+    bands: () => ReactNode;
     songLanguages: () => ReactNode;
     viewerToken: () => ReactNode;
     remoteCommands: () => ReactNode;
     keyboardMapping: () => ReactNode;
     companion: () => ReactNode;
+    audioMixer: () => ReactNode;
     autoUpdater: () => ReactNode;
     credentials: () => ReactNode;
     desktopDownload: () => ReactNode;
@@ -160,17 +162,30 @@ export const buildSettingsCatalog = (LL: TranslationFunctions, ctx: CatalogConte
         keywords: [LL.SETTINGS.GLOBAL_STYLE(), O.SHOW_TITLE_TEMPLATE.TITLE(), O.SHOW_TITLE_TEMPLATE.DESCRIPTION(TEMPLATE_VARS)],
       },
       {
-        id: 'connection',
-        title: S.CONNECTION(),
-        settings: [
-          {
-            key: 'backendUrl',
-            label: O.BACKEND_URL.TITLE(),
-            description: O.BACKEND_URL.DESCRIPTION(),
-            control: { kind: 'text', placeholder: 'https://...' },
-          },
-        ],
+        id: 'bands',
+        title: S.BANDS(),
+        description: LL.BANDS.SECTION_HINT(),
+        render: () => ctx.slots.bands(),
+        keywords: [LL.BANDS.TITLE(), LL.BANDS.MEMBERS(), 'band', 'lineup', 'besetzung', 'musiker'],
       },
+      // Desktop app only: the browser build always talks to the server it was loaded from and
+      // ignores the setting (see getBackendBaseUrl).
+      ...(ctx.isElectron
+        ? [
+            {
+              id: 'connection',
+              title: S.CONNECTION(),
+              settings: [
+                {
+                  key: 'backendUrl' as const,
+                  label: O.BACKEND_URL.TITLE(),
+                  description: O.BACKEND_URL.DESCRIPTION(),
+                  control: { kind: 'text' as const, placeholder: 'https://...' },
+                },
+              ],
+            },
+          ]
+        : []),
       {
         id: 'backup',
         title: S.BACKUP(),
@@ -450,6 +465,24 @@ export const buildSettingsCatalog = (LL: TranslationFunctions, ctx: CatalogConte
 
   const remoteSections: SettingsSection[] = [
     {
+      id: 'remote-authority',
+      settings: [
+        {
+          key: 'operatorSyncAuthority',
+          label: LL.REMOTE.AUTHORITY_TITLE(),
+          description: LL.REMOTE.AUTHORITY_HINT(),
+          control: {
+            kind: 'select',
+            options: [
+              { value: 'auto', label: LL.REMOTE.AUTHORITY_AUTO() },
+              { value: 'always', label: LL.REMOTE.AUTHORITY_ALWAYS() },
+              { value: 'never', label: LL.REMOTE.AUTHORITY_NEVER() },
+            ],
+          },
+        },
+      ],
+    },
+    {
       id: 'remote-commands',
       title: S.REMOTE_COMMANDS(),
       description: LL.REMOTE.SETTINGS_HINT(),
@@ -465,6 +498,11 @@ export const buildSettingsCatalog = (LL: TranslationFunctions, ctx: CatalogConte
       keywords: [S.VIEWER(), LL.VIEWER_TOKEN.TITLE(), LL.VIEWER_TOKEN.DESCRIPTION()],
     });
   }
+  remoteSections.push({
+    id: 'audio-mixer',
+    render: () => ctx.slots.audioMixer(),
+    keywords: [S.AUDIO_MIXER(), LL.SETTINGS.AUDIO_MIXER_DESC(), 'mixer', 'monitor', 'x32', 'xair', 'behringer', 'audio', 'streamer'],
+  });
   remoteSections.push({
     id: 'companion',
     title: S.COMPANION(),

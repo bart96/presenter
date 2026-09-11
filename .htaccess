@@ -43,3 +43,9 @@ RewriteRule ^(.*)$ index.html [L]
 <Files "config.php">
   Require all denied
 </Files>
+
+# Shipped so a fresh deployment can bootstrap its database — imported from the shell,
+# never served.
+<Files "install.sql">
+  Require all denied
+</Files>

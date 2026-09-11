@@ -1,5 +1,6 @@
 import { MEDIA_SERVER_BASE } from '@/utils/mediaUrl';
 import { getSetting } from '@/store/settingsSlice';
+import { LOGOUT_RESET_STATE, LOGOUT_STATE, type ResetOptions } from '@/utils/localDataReset';
 
 /** Returns true when running inside the Electron shell (window.api is injected by the preload). */
 export const isElectronApp = (): boolean => typeof window !== 'undefined' && !!(window as { api?: unknown }).api;
@@ -93,20 +94,30 @@ export const redirectToLogin = (next?: string) => {
  * here is what makes providers answer the logout with `400 invalid_request —
  * post_logout_redirect_uri not registered`. The backend instead sends `state=logged_out`,
  * which the provider echoes back onto this URL, and {@link isPostLogoutReturn} reads it.
+ *
+ * With `reset` it is also the recovery link for a device stuck in a stale state: `cookies`
+ * has the backend expire every cookie the device sends, `storage` has the login page wipe
+ * localStorage before the app reads it (see utils/localDataReset). Opened by hand it works
+ * without a session too.
  */
-export const oidcLogoutUrl = (): string => {
+export const oidcLogoutUrl = (reset?: Partial<ResetOptions>): string => {
   const origin = isElectronApp() ? getBackendOrigin() : window.location.origin;
   const back = `${origin}/login`;
-  return `${origin}/oidc?logout=1&redirect=${encodeURIComponent(back)}`;
+  const parts = (['cookies', 'storage'] as const).filter((part) => reset?.[part]);
+  const resetParam = parts.length > 0 ? `&reset=${parts.join(',')}` : '';
+  return `${origin}/oidc?logout=1${resetParam}&redirect=${encodeURIComponent(back)}`;
 };
 
 /**
  * Does this URL mark the end of the logout round-trip? `state=logged_out` is what the
- * provider returns today; `logged_out=1` is the older form, still accepted so a client
- * built before this change keeps working against a newer backend and vice versa.
+ * provider returns today (`logged_out_reset` when local data was to be wiped as well);
+ * `logged_out=1` is the older form, still accepted so a client built before this change
+ * keeps working against a newer backend and vice versa.
  */
-export const isPostLogoutReturn = (params: URLSearchParams): boolean =>
-  params.get('state') === 'logged_out' || params.get('logged_out') === '1';
+export const isPostLogoutReturn = (params: URLSearchParams): boolean => {
+  const state = params.get('state');
+  return state === LOGOUT_STATE || state === LOGOUT_RESET_STATE || params.get('logged_out') === '1';
+};
 
 export type DetectedOs = 'windows' | 'macos' | 'linux' | 'unknown';
 

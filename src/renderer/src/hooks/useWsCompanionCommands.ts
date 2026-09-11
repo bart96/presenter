@@ -241,6 +241,5 @@ export const useWsCompanionCommands = () => {
       if (typeof removeVideoListener === 'function') removeVideoListener();
     };
     // Register listeners once — state is always read from stateRef
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 };

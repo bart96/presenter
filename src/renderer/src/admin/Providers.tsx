@@ -194,7 +194,7 @@ const ProviderDialog = ({
     if (provider) {
       onSave({ ...formData, id: formData.id });
     } else {
-      const { id, ...createData } = formData;
+      const { id: _id, ...createData } = formData;
       onSave(createData);
     }
   };

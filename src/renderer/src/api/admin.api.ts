@@ -145,6 +145,57 @@ export type AdminConfigData = {
     port: number;
     path?: string;
   } | null;
+  /** Endpoints that only exist on a dev deployment — see api/DbCopy.php. */
+  devTools: {
+    /** True when both the endpoint and its copy.config.php are present. */
+    dbCopy: boolean;
+  };
+};
+
+/** One table in a database-copy plan. */
+export type DbCopyTable = {
+  name: string;
+  /** Source row count. Zero for anything not copied with its data. */
+  rows: number;
+  mode: 'data' | 'structure' | 'excluded';
+};
+
+export type DbCopyReplacement = { from: string; to: string };
+
+export type DbCopyDataDir = {
+  configured: boolean;
+  readable: boolean;
+  source: string;
+  target: string;
+};
+
+export type DbCopyStatus = {
+  source: { url: string; host: string; database: string; schemaVersion: number | null };
+  target: { url: string; host: string; database: string; schemaVersion: number | null };
+  replacements: DbCopyReplacement[];
+  tables: DbCopyTable[];
+  dataDir: DbCopyDataDir;
+};
+
+export type DbCopyResult = {
+  dryRun: boolean;
+  tables: DbCopyTable[];
+  rowsCopied: number;
+  replacements: DbCopyReplacement[];
+  /** Columns the URL rewrite actually changed. */
+  rewrites: Array<{ column: string; rows: number }>;
+  rowsRewritten: number;
+  /** Number of uploaded files copied, or null when file copying is not configured. */
+  dataFiles: number | null;
+  dataDir: DbCopyDataDir;
+  schemaVersion: number | null;
+  durationMs: number;
+};
+
+export type RunDbCopyRequest = {
+  dryRun?: boolean;
+  /** Restrict the copy to these tables. Empty or omitted means all of them. */
+  tables?: string[];
 };
 
 /** One row of an account's song library, as seen by the admin panel. */
@@ -292,6 +343,18 @@ const adminApi = presenterApi.injectEndpoints({
       invalidatesTags: (_res, _err, arg) => (arg.dryRun ? [] : [{ type: 'AdminSongs', id: arg.license }]),
     }),
 
+    // ──────── Admin: Database copy (dev deployments only) ────────
+    getDbCopyStatus: build.query<ApiSuccess<DbCopyStatus>, void>({
+      query: () => 'rest/DbCopy',
+      providesTags: ['DbCopy'],
+    }),
+    runDbCopy: build.mutation<ApiSuccess<DbCopyResult>, RunDbCopyRequest>({
+      query: (body) => ({ url: 'rest/DbCopy', method: 'POST', body }),
+      // A real copy replaces the schema wholesale, so the migration list is stale
+      // afterwards — that is where the user goes next. A dry run changes nothing.
+      invalidatesTags: (_res, _err, arg) => (arg.dryRun ? [] : ['DbCopy', 'AdminMigrations']),
+    }),
+
     // ──────── Admin: Config ────────
     getAdminConfig: build.query<ApiSuccess<AdminConfigData>, void>({
       query: () => 'rest/AdminConfig',
@@ -324,5 +387,7 @@ export const {
   useGetAdminMigrationsQuery,
   useRunAdminMigrationsMutation,
   useGetAdminConfigQuery,
+  useGetDbCopyStatusQuery,
+  useRunDbCopyMutation,
   useCreateWsMonitorTicketMutation,
 } = adminApi;

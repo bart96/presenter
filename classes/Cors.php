@@ -127,6 +127,44 @@ class Cors
     }
 
     /**
+     * Expire every cookie the browser sent with this request — the "delete cookies" half of
+     * "Log out and reset".
+     *
+     * A cookie is only replaced when name, domain and path all match, so this reaches cookies
+     * set host-only on `/`, which is how this app sets its own. Names are read from the raw
+     * Cookie header because PHP rewrites dots and spaces in `$_COOKIE` keys.
+     *
+     * `Clear-Site-Data: "cookies"` is deliberately not used: it clears the whole registrable
+     * domain, which on a shared parent domain would also end the identity provider's session
+     * before the logout redirect ever reaches it.
+     */
+    public static function expireAllCookies(): void
+    {
+        if (headers_sent()) {
+            return;
+        }
+        $isHttps = self::isHttps();
+        foreach (explode(';', $_SERVER['HTTP_COOKIE'] ?? '') as $pair) {
+            $name = trim(explode('=', $pair, 2)[0]);
+            if ($name === '') {
+                continue;
+            }
+            try {
+                setcookie($name, '', [
+                    'expires'  => time() - 42000,
+                    'path'     => '/',
+                    'domain'   => '',
+                    'secure'   => $isHttps,
+                    'httponly' => true,
+                    'samesite' => $isHttps ? 'None' : 'Lax',
+                ]);
+            } catch (Throwable) {
+                // setcookie() rejects some characters in names — such a cookie is not ours.
+            }
+        }
+    }
+
+    /**
      * Returns true when the current request arrived over HTTPS.
      * Checks the standard $_SERVER['HTTPS'] flag and common reverse-proxy
      * headers (X-Forwarded-Proto, X-Forwarded-SSL) so it works whether the

@@ -3,7 +3,9 @@ import { createRoot } from 'react-dom/client';
 import { Presentation, type PresentationProps } from '@/presentation/Presentation';
 import type { PresentationContent } from '@/presentation/types';
 import { EMPTY_CONTENT } from '@/presentation/types';
+import { EMPTY_STAGE_PAYLOAD, type StageOverlayPayload } from '@/stage/types';
 import { getSetting } from '@/store/settingsSlice';
+import { showDevBanner } from '@/devBanner';
 import { playWithFade, pauseWithFade, stopWithFade } from '@/presentation/videoUtils';
 import { LanguageStyleEntry } from '@/api/styles.api';
 import { MAIN_LANGUAGE_SLOT, entryForSlot, slotForLanguage } from '@/utils/languageSlots';
@@ -14,6 +16,7 @@ export * from '@/presentation/IdentifyOverlay';
 export * from '@/presentation/MediaContent';
 export * from '@/presentation/NextBlockPreview';
 export * from '@/presentation/NormalMode';
+export * from '@/presentation/StageOverlay';
 export * from '@/presentation/StreamMode';
 
 /**
@@ -121,6 +124,14 @@ if (urlTransparent === '1') {
 // Create the root once
 const root = createRoot(el);
 
+// This window mounts its own root rather than going through mountRoot(), so it raises the
+// dev banner itself. Compact: the page is the projection, and a labelled pill over the
+// lyrics would be read as part of them. Never in transparent mode — there the window is a
+// video source being composited into a stream, and a stripe would be baked into it.
+if (urlTransparent !== '1') {
+  void showDevBanner({ compact: true });
+}
+
 // Track the last known content for re-render after identify
 let lastProps: PresentationProps = { content: EMPTY_CONTENT };
 
@@ -142,13 +153,36 @@ const applyUrlOverrides = (content: PresentationContent): PresentationContent =>
 // boundary — eliminating the visible offset between windows during fast nav.
 let pendingProps: PresentationProps | null = null;
 let rafScheduled = false;
+/**
+ * The stage overlay is held separately from the content and merged in at render time.
+ * The two arrive on different channels with different lifetimes: a slide change must not
+ * reset a running countdown, and a cue change must not re-commit (and re-preload) the
+ * slide. Keeping it out of `PresentationProps` on the wire is what makes that true.
+ */
+let currentStage: StageOverlayPayload = EMPTY_STAGE_PAYLOAD;
 const commit = () => {
   rafScheduled = false;
-  if (!pendingProps) return;
-  const props = pendingProps;
+  const props = pendingProps ?? lastProps;
   pendingProps = null;
   lastProps = props;
-  root.render(<Presentation {...props} />);
+  root.render(<Presentation {...props} stage={currentStage} />);
+};
+
+const scheduleCommit = () => {
+  if (rafScheduled) return;
+  rafScheduled = true;
+  requestAnimationFrame(commit);
+};
+
+/**
+ * Apply a stage-overlay update.
+ *
+ * Deliberately skips the heavy-asset staging below: the overlay carries no assets, and
+ * making a countdown wait for a background video to decode would be absurd.
+ */
+export const updateStage = (payload: StageOverlayPayload) => {
+  currentStage = payload ?? EMPTY_STAGE_PAYLOAD;
+  scheduleCommit();
 };
 
 // ── Heavy-asset preloading ────────────────────────────────────────────────────
@@ -260,10 +294,7 @@ export const updatePresentation = (props: PresentationProps) => {
       preloadTimer = null;
       lastCommittedHeavyKey = incomingHeavyKey;
       pendingProps = props;
-      if (!rafScheduled) {
-        rafScheduled = true;
-        requestAnimationFrame(commit);
-      }
+      scheduleCommit();
     };
 
     // Hard cap: never wait longer than the grace period.
@@ -283,10 +314,7 @@ export const updatePresentation = (props: PresentationProps) => {
     document.body.classList.toggle('media-item-active', isMediaVideo);
   }
   pendingProps = props;
-  if (!rafScheduled) {
-    rafScheduled = true;
-    requestAnimationFrame(commit);
-  }
+  scheduleCommit();
 };
 
 // ── Listen for messages from the main window ──
@@ -296,6 +324,8 @@ window.addEventListener('message', (event) => {
   if (!event?.data) return;
   if (event.data.type === 'UPDATE_PRESENTATION') {
     updatePresentation(event.data.props);
+  } else if (event.data.type === 'UPDATE_STAGE') {
+    updateStage(event.data.payload);
   } else if (event.data.type === 'HIDE_IDENTIFY') {
     // Re-render last content without the identify overlay
     const restored = {
@@ -331,6 +361,10 @@ if (window.presentationApi) {
     if (msg.type === 'UPDATE_PRESENTATION') {
       updatePresentation(msg.props);
     }
+  });
+
+  window.presentationApi.onStageUpdate?.((data: unknown) => {
+    updateStage(data as StageOverlayPayload);
   });
 
   window.presentationApi.onCommand((data: unknown) => {

@@ -41,6 +41,9 @@ const api = {
   updatePresentationContent: (id: string, content: unknown) => {
     ipcRenderer.send('update-presentation-content', id, content);
   },
+  updateStageOverlay: (id: string, payload: unknown) => {
+    ipcRenderer.send('update-stage-overlay', id, payload);
+  },
   broadcastPresentationContent: (content: unknown) => {
     ipcRenderer.send('broadcast-presentation-content', content);
   },
@@ -105,6 +108,8 @@ const api = {
   exportSettings: () => electronAPI.ipcRenderer.invoke('export-settings'),
   importSettings: () => electronAPI.ipcRenderer.invoke('import-settings'),
   applyImportedSettings: (diff: unknown) => electronAPI.ipcRenderer.invoke('apply-imported-settings', diff),
+  // Commit pending localStorage writes to disk now (see renderer store/persist.ts).
+  flushStorage: () => ipcRenderer.send('flush-storage'),
 
   // ── Auto-updater ──
   installUpdate: () => electronAPI.ipcRenderer.invoke('install-update'),

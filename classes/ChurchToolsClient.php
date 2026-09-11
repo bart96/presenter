@@ -264,7 +264,7 @@ class ChurchToolsClient
         }
 
         substr(is_string($body) ? $body : '', 0, 8)
-          |> (fn($x) => sprintf('downloadFileById id=%d mode=%s http=%d err=%s len=%d head=%s', $id, $mode, $httpCode, $curlErr !== '' ? $curlErr : '-', is_string($body) ? strlen($body) : 0, $x))
+          |> (fn ($x) => sprintf('downloadFileById id=%d mode=%s http=%d err=%s len=%d head=%s', $id, $mode, $httpCode, $curlErr !== '' ? $curlErr : '-', is_string($body) ? strlen($body) : 0, $x))
           |> Logging::debug(...);
         return is_string($body) && $body !== '' ? $body : null;
     }

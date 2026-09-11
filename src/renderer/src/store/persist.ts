@@ -100,6 +100,7 @@ export function persistState(key: string, value: unknown): boolean {
 
   try {
     localStorage.setItem(key, serialized);
+    requestDiskFlush();
     return true;
   } catch (err) {
     if (!isQuotaError(err)) {
@@ -115,6 +116,7 @@ export function persistState(key: string, value: unknown): boolean {
       freed.push(evictor.name);
       try {
         localStorage.setItem(key, serialized);
+        requestDiskFlush();
         console.warn(`[persist] storage was full — freed ${freed.join(', ')} to save "${key}"`);
         announce({ key, freed, saved: true });
         return true;
@@ -130,4 +132,28 @@ export function persistState(key: string, value: unknown): boolean {
     announce({ key, freed, saved: false });
     return false;
   }
+}
+
+/**
+ * How long a burst of writes may gather before the desktop app forces them to disk.
+ *
+ * A successful `setItem` is not yet on disk. Chromium keeps localStorage changes in memory
+ * and commits them lazily — 5 s after a change at best, stretched further once 60 commits
+ * an hour are used up. A process that ends before then loses them, and the ways it ends
+ * that way are the ones that skip the orderly shutdown which would flush: a Windows update
+ * restart or log-off, a crash, a force-kill. So every write asks the main process for an
+ * immediate commit, at most once per interval.
+ */
+const FLUSH_INTERVAL_MS = 1000;
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function requestDiskFlush(): void {
+  if (flushTimer !== null) return;
+  const api = (window as { api?: { flushStorage?: () => void } }).api;
+  // The browser build has no main process to ask; the browser flushes on its own schedule.
+  if (!api?.flushStorage) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    api.flushStorage?.();
+  }, FLUSH_INTERVAL_MS);
 }

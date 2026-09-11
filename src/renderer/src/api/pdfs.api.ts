@@ -147,16 +147,17 @@ const pdfsApi = presenterApi.injectEndpoints({
       }),
       providesTags: (_res, _err, arg) => [{ type: 'Pdfs', id: `mappings-${arg.songNumber}-${arg.filename}` }],
     }),
-    savePdfAreaMappings: build.mutation<ApiSuccess<{ message: string }>, { songNumber: number; filename: string; mappings: PdfAreaMapping[] }>(
-      {
-        query: ({ songNumber, filename, mappings }) => ({
-          url: `rest/Pdfs/${songNumber}/mappings`,
-          method: 'PUT',
-          body: { filename, mappings },
-        }),
-        invalidatesTags: (_res, _err, arg) => [{ type: 'Pdfs', id: `mappings-${arg.songNumber}-${arg.filename}` }],
-      },
-    ),
+    savePdfAreaMappings: build.mutation<
+      ApiSuccess<{ message: string }>,
+      { songNumber: number; filename: string; mappings: PdfAreaMapping[] }
+    >({
+      query: ({ songNumber, filename, mappings }) => ({
+        url: `rest/Pdfs/${songNumber}/mappings`,
+        method: 'PUT',
+        body: { filename, mappings },
+      }),
+      invalidatesTags: (_res, _err, arg) => [{ type: 'Pdfs', id: `mappings-${arg.songNumber}-${arg.filename}` }],
+    }),
   }),
   overrideExisting: false,
 });

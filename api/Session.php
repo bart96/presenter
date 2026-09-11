@@ -65,6 +65,11 @@ class Session extends RestController
                     'isAuthenticated' => isset($_SESSION['authType']) && !empty($_SESSION['authType']),
                     'authType' => $_SESSION['authType'] ?? null,
                     'settings' => [
+                        // Drives the dev banner every page paints over itself. Deliberately
+                        // part of the unauthenticated response: the login page has to show it
+                        // too, and knowing a deployment calls itself a dev one gives away
+                        // nothing an operator could not already see from its address.
+                        'development' => defined('DEVELOPMENT') && (bool) DEVELOPMENT,
                         'bibleEnabled' => defined('BIBLE_API') && is_array(BIBLE_API) && !empty(BIBLE_API['enabled']) && BIBLE_API['enabled'],
                         'churchToolsEnabled' => $ctEnabled,
                         'wsHost' => defined('WS_HOST') && is_array(WS_HOST) && !empty(WS_HOST['host'])

@@ -1,5 +1,6 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import type { PresentationContent } from './types';
+import type { StageOverlayPayload } from '@/stage/types';
 import { styleToContainerCss, styleToTextCss, mergeStyles, DEFAULT_STYLE, type ResolvedStyle } from '@/utils/styleUtils';
 import {
   BibleVerseContent,
@@ -11,6 +12,7 @@ import {
   NormalMode,
   StreamMode,
 } from '@/presentation';
+import { StageOverlay } from '@/presentation/StageOverlay';
 import { rampToVolume } from '@/presentation/videoUtils';
 import { MAIN_LANGUAGE_SLOT, entryForSlot } from '@/utils/languageSlots';
 
@@ -21,6 +23,11 @@ import { MAIN_LANGUAGE_SLOT, entryForSlot } from '@/utils/languageSlots';
 export interface PresentationProps {
   title?: string;
   content?: PresentationContent;
+  /**
+   * Stage-monitor overlay. Passed alongside the content rather than inside it: the two
+   * arrive on separate channels and must not reset one another.
+   */
+  stage?: StageOverlayPayload;
 }
 
 /**
@@ -167,7 +174,7 @@ const FadeOutLayer = ({
  * Handles normal mode, stream mode, media, bible verses, and black screen.
  */
 export const Presentation = (props: PresentationProps) => {
-  const { content } = props;
+  const { content, stage } = props;
 
   // Check for transparent mode from URL params (OBS Browser Source)
   const isTransparent = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('transparent') === '1';
@@ -239,8 +246,13 @@ export const Presentation = (props: PresentationProps) => {
           width: '100vw',
           height: '100vh',
           backgroundColor: '#000',
+          position: 'relative',
         }}
-      />
+      >
+        {/* A window that only carries a stage layer — a countdown before the service on an
+            otherwise blank screen — never gets any content, so it lives entirely here. */}
+        <StageOverlay payload={stage} />
+      </div>
     );
   }
 
@@ -256,6 +268,7 @@ export const Presentation = (props: PresentationProps) => {
           position: 'relative',
         }}
       >
+        <StageOverlay payload={stage} />
         <IdentifyOverlay windowName={content.windowName} windowNumber={content.windowNumber} styleName={content.identifyStyleName} />
       </div>
     );
@@ -470,6 +483,10 @@ export const Presentation = (props: PresentationProps) => {
 
       {/* Custom CSS injection */}
       {resolvedStyle.css && <style>{resolvedStyle.css}</style>}
+
+      {/* Stage monitor. Inside the container on purpose, so a blacked-out window goes
+          fully dark; hiding the overlay on its own is a separate operator control. */}
+      <StageOverlay payload={stage} />
 
       {/* Window identification overlay */}
       {content.showIdentify && (

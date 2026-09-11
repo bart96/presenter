@@ -1,7 +1,9 @@
+// Must stay the first import: it may wipe localStorage, which the store reads while loading.
+import './applyPendingReset';
 import './assets/main.css';
 
 import { StrictMode, useMemo } from 'react';
-import { createRoot } from 'react-dom/client';
+import { mountRoot } from './mountRoot';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { Provider } from 'react-redux';
 import { store } from '@/store';
@@ -36,7 +38,7 @@ const LoginApp = () => {
   );
 };
 
-createRoot(document.getElementById('root')!).render(
+mountRoot(
   <StrictMode>
     <Provider store={store}>
       <LoginApp />

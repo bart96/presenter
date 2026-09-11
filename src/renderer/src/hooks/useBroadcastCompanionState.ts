@@ -116,8 +116,6 @@ export const useBroadcastCompanionState = () => {
     }
 
     doBroadcast();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeItemIndex, activeBlockIndex, activeLineIndex, isBlack, songsOrder, orderName, doBroadcast]);
 
   // Cleanup timer on unmount

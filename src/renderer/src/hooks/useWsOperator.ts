@@ -10,6 +10,7 @@
  */
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { WS_CLOSE_OPERATOR_DISCONNECT, type WsClientInfo } from './useWsSync';
+import type { SyncOrigin } from '@/utils/syncProtocol';
 
 const RECONNECT_DELAY_MS = 5000;
 
@@ -31,15 +32,14 @@ const parsePeers = (raw: unknown): WsPeerInfo[] | null => {
     const obj = (entry ?? {}) as Record<string, unknown>;
     const role = obj.role;
     return {
-      role:
-        role === 'operator' || role === 'musician' || role === 'remote' || role === 'viewer' ? role : ('unknown' as const),
+      role: role === 'operator' || role === 'musician' || role === 'remote' || role === 'viewer' ? role : ('unknown' as const),
       mode: typeof obj.mode === 'string' ? obj.mode : undefined,
       name: typeof obj.name === 'string' ? obj.name : undefined,
     };
   });
 };
 
-export interface WsOperatorIncomingSync {
+export interface WsOperatorIncomingSync extends SyncOrigin {
   activeItemIndex?: number;
   activeBlockIndex?: number;
   activeLineIndex?: number;
@@ -55,6 +55,18 @@ export const useWsOperator = (
   onMusicianSync?: (state: WsOperatorIncomingSync) => void,
   onGetState?: () => void,
   onRemoteCommand?: (data: Record<string, unknown>) => void,
+  /**
+   * Ask the account's peers for the current position on connect. Set while a MIDI musician
+   * is the navigation master: this app then does not know where the show is, and publishing
+   * its own start-up position would drag everyone back to it.
+   */
+  requestStateOnConnect = false,
+  /**
+   * Frames this hook has no opinion about, handed on verbatim — the audio mixer's requests
+   * arrive here. It shares this socket rather than opening its own, so the operator does
+   * not appear in its own connected-clients list twice.
+   */
+  onRelayMessage?: (msg: Record<string, unknown>) => void,
 ) => {
   const wsRef = useRef<WebSocket | null>(null);
   const authedRef = useRef(false);
@@ -81,6 +93,10 @@ export const useWsOperator = (
   onGetStateRef.current = onGetState;
   const onRemoteCommandRef = useRef(onRemoteCommand);
   onRemoteCommandRef.current = onRemoteCommand;
+  const onRelayMessageRef = useRef(onRelayMessage);
+  onRelayMessageRef.current = onRelayMessage;
+  const requestStateOnConnectRef = useRef(requestStateOnConnect);
+  requestStateOnConnectRef.current = requestStateOnConnect;
 
   useEffect(() => {
     if (!url || account == null) {
@@ -122,6 +138,15 @@ export const useWsOperator = (
             if (msg.type === 'auth_ok') {
               authedRef.current = true;
               setConnected(true);
+              // We are following a MIDI master — ask it where the show is rather than
+              // assuming our own position is the truth.
+              if (requestStateOnConnectRef.current) {
+                try {
+                  ws.send(JSON.stringify({ action: 'get_state', id: 'operator-init' }));
+                } catch {
+                  // a missed request just means we wait for the next musician broadcast
+                }
+              }
             }
             if (typeof msg.others === 'number') {
               setConnectedCount(msg.others);
@@ -140,9 +165,18 @@ export const useWsOperator = (
             // operator to a stale position every time this socket reconnects (and sockets
             // churn exactly when other devices are connecting).
             if (msg.replay) return;
+            // Another OPERATOR's broadcast. The relay fans every broadcast out to all peers
+            // of the account, so a second app instance — a laptop with the page still open,
+            // a phone that never navigated away — arrives here looking exactly like a
+            // musician driving the show. Following it dragged the live operator back to
+            // that instance's stale item on every footswitch press and every musician
+            // (re)connect. An operator is never navigation input for another operator.
+            // Untagged senders predate the field and stay trusted.
+            const data = msg.data as WsOperatorIncomingSync;
+            if (data.senderRole === 'operator') return;
             // A musician is broadcasting their current position — record the timestamp
             setLastMidiSyncAt(Date.now());
-            onMusicianSyncRef.current?.(msg.data as WsOperatorIncomingSync);
+            onMusicianSyncRef.current?.(data);
           } else if (msg.action === 'get_state') {
             // A new musician client is requesting the current state — re-broadcast immediately
             onGetStateRef.current?.();
@@ -151,6 +185,8 @@ export const useWsOperator = (
           } else if (msg.action === 'remote_command' && msg.data) {
             // A remote-control client (mobile control page) sent a navigation command
             onRemoteCommandRef.current?.(msg.data as Record<string, unknown>);
+          } else {
+            onRelayMessageRef.current?.(msg);
           }
         } catch {
           // ignore
@@ -197,10 +233,12 @@ export const useWsOperator = (
     };
   }, [url, account, reconnectNonce]);
 
-  const broadcast = useCallback((action: string, data?: Record<string, unknown>) => {
+  const broadcast = useCallback((action: string, data?: Record<string, unknown>, to?: string | string[]) => {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN || !authedRef.current) return;
-    ws.send(JSON.stringify({ type: 'broadcast', action, data }));
+    // `to` limits delivery to the named peers. Relays that predate it broadcast as before,
+    // and every receiver checks the field itself, so both worlds stay correct.
+    ws.send(JSON.stringify({ type: 'broadcast', action, data, ...(to === undefined ? {} : { to }) }));
   }, []);
 
   /** Re-open after the operator dropped us — the one close that does not retry on its own. */

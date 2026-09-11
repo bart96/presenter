@@ -31,6 +31,7 @@ import { useKeyboardRemote } from '@/hooks/useKeyboardRemote';
 import { useRemoteActionFilter } from '@/hooks/useRemoteActionFilter';
 import { loadShowSongs } from '@/store/songsSlice';
 import { parseOrderKey } from '@/utils/orderKeyUtils';
+import { useBands } from '@/hooks/useBands';
 import { Song } from '@/song';
 import type { Show, ShowItem } from '@/api/shows.api';
 import {
@@ -41,6 +42,9 @@ import {
 import { useShowUpdatePoller } from '@/hooks/useShowUpdatePoller';
 import { formatRelativeTime } from '@/utils/relativeTime';
 import { useWsSync } from '@/hooks/useWsSync';
+import { useMixerBridge } from '@/hooks/useMixerBridge';
+import { MixerLauncher } from '@/components/mixer/MixerLauncher';
+import { resolveSyncIndex, showOrderSignature } from '@/utils/syncProtocol';
 import { useMetrics } from '@/hooks/useMetrics';
 import { useGetSessionQuery } from '@/api/session.api';
 import { useUpdateSongMutation } from '@/api/songs.api';
@@ -58,6 +62,14 @@ import { presenterApi } from '@/api/base.api';
  */
 /** How often auto-refresh re-validates PDFs and annotations (they have no revision feed). */
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
+/**
+ * How long our own navigation outranks anything arriving from the relay.
+ *
+ * The operator echoes our position back almost immediately, but it coalesces its
+ * broadcasts, so a fast second press can be answered by the echo of the first. Without
+ * this window, following peers in MIDI mode would make quick presses stutter backwards.
+ */
+const LOCAL_AUTHORITY_MS = 600;
 
 /**
  * Identity of this page's outgoing sync broadcasts.
@@ -74,6 +86,8 @@ export const MusicianPage = () => {
 
   const { palette } = useTheme();
   const { LL, locale } = useI18nContext();
+  // The account's bands: their names feed the band picker, their members the name picker.
+  const { bandNames, memberNames: bandMemberNames } = useBands();
   const {
     musicianName,
     musicianBand,
@@ -88,6 +102,7 @@ export const MusicianPage = () => {
     musicianLastItemIndex: persistedLastItemIndex,
     musicianAutoRefresh: autoRefresh,
     musicianRemoteDebounceMs: remoteDebounceMs,
+    mixerCompact,
   } = useGetMusicianSettings();
   const { currentShow, isShowSelectorOpen } = useGetShow();
   const { songs } = useGetSongs();
@@ -119,7 +134,7 @@ export const MusicianPage = () => {
   const [orderEditorSaving, setOrderEditorSaving] = useState(false);
 
   // Fetch session to get the authenticated account number
-  const { offlineMode } = useGetSettings();
+  const { offlineMode, deviceId } = useGetSettings();
   const { data: sessionData } = useGetSessionQuery(undefined, { skip: offlineMode });
   const churchToolsEnabled = sessionData?.settings?.churchToolsEnabled ?? false;
   const [updateSongMutation] = useUpdateSongMutation();
@@ -153,6 +168,11 @@ export const MusicianPage = () => {
   const initialLoadDone = useRef(false);
   /** Holds the latest annotation refetch function registered by PdfAnnotationToolbar */
   const annotationRefetchRef = useRef<(() => void) | null>(null);
+  /**
+   * The poller's reload, reachable from the WS callback without re-creating it. Declared
+   * here because the callback below is defined before the poller hands us the function.
+   */
+  const reloadShowRef = useRef<(() => Promise<unknown>) | null>(null);
 
   // ── Show update polling ──────────────────────────────────────────────
   // In auto-refresh mode the poller applies foreign changes itself and never raises the banner.
@@ -162,6 +182,7 @@ export const MusicianPage = () => {
     reloadShow,
     dismiss: dismissShowUpdate,
   } = useShowUpdatePoller({ autoReload: autoRefresh });
+  reloadShowRef.current = reloadShow;
   // Only fetch the operator's show (by title) when following it — not the whole show library.
   const { data: operatorShowData } = useGetShowQuery({ title: operatorWsShowTitle ?? '' }, { skip: !operatorWsShowTitle });
   // Keep the snackbar driven by the hook
@@ -184,17 +205,57 @@ export const MusicianPage = () => {
   // current value and skip dispatching when nothing actually changed.
   const operatorItemIndexRef = useRef(0);
   const operatorBlockIndexRef = useRef(0);
+  /** When we last navigated ourselves — see LOCAL_AUTHORITY_MS. */
+  const lastLocalNavAtRef = useRef(0);
+  /** Re-broadcasts our current position; assigned once `broadcastMidiSync` exists. */
+  const answerGetStateRef = useRef<(() => void) | null>(null);
+  /** Fingerprint of the show order we hold, so peers' indices can be validated. */
+  const showSigRef = useRef<string | undefined>(undefined);
+  /** Read inside the WS callback, which must not be re-created when these change. */
+  const autoRefreshRef = useRef(false);
+  const deviceIdRef = useRef('');
+  /**
+   * A peer is navigating a different version of the show, so its indices cannot be applied.
+   * Raised instead of silently dropping the command — otherwise the footswitch just looks
+   * broken. Cleared by reloading, or by the musician dismissing it.
+   */
+  const [syncMismatch, setSyncMismatch] = useState<{ songTitle?: string; at: number } | null>(null);
+  /** Monitor mixer overlay. Its chunk is not downloaded until this first goes true. */
+  const [mixerOpen, setMixerOpen] = useState(false);
 
   // Connected in every sync mode, including 'off': an independent musician follows nothing,
   // but the operator still needs to see them in the connected-clients breakdown (and be able
   // to clear them). Incoming state is dropped below instead of never arriving.
   const wsEnabled = !!wsUrl && wsAccount !== null;
-  const { status: wsStatus, broadcast: wsSend, reconnect: wsReconnect } = useWsSync({
+  /**
+   * The mixer shares this page's relay socket. It is wired through a ref because the hook
+   * that handles its frames is created below, after the socket it sends on — and because
+   * a second socket would make this musician appear twice in the operator's client list.
+   */
+  const mixerRelayHandlerRef = useRef<((msg: Record<string, unknown>) => void) | null>(null);
+
+  const {
+    status: wsStatus,
+    broadcast: wsSend,
+    reconnect: wsReconnect,
+    relayClientId,
+  } = useWsSync({
     url: wsUrl,
     account: wsAccount,
     enabled: wsEnabled,
     clientInfo: { role: 'musician', mode: syncMode, name: musicianName || undefined },
     requestState: syncMode !== 'off',
+    onRelayMessage: useCallback((msg: Record<string, unknown>) => mixerRelayHandlerRef.current?.(msg), []),
+    /**
+     * A peer (typically an operator that just (re)started) is asking where the show is.
+     * In MIDI mode this page is the navigation master, so it is the one that knows —
+     * answering makes a restarting operator adopt our position instead of publishing its
+     * own start-up position and dragging the band back to the first song.
+     */
+    onGetState: useCallback(() => {
+      if (syncModeRef.current !== 'midi') return;
+      answerGetStateRef.current?.();
+    }, []),
     onStateUpdate: useCallback(
       (state) => {
         // Independent: this page navigates on its own, so nothing from the relay applies.
@@ -203,6 +264,7 @@ export const MusicianPage = () => {
         // Our own broadcast, bounced back by the relay — applying it would re-enter the
         // navigation path for a position we just set ourselves.
         if (state.clientId && state.clientId === WS_CLIENT_ID) return;
+        if (state.senderRole === 'musician' && state.senderId && state.senderId === deviceIdRef.current) return;
 
         // The relay's cached-state replay (sent on every (re)connect). In MIDI mode WE are
         // the navigation master — adopting a stale cache (often the operator's last
@@ -211,9 +273,35 @@ export const MusicianPage = () => {
         // In operator mode it is the intended starting position, so it passes through.
         if (state.replay && syncMode === 'midi') return;
 
+        // We just navigated here ourselves. The operator mirrors our position straight
+        // back, but its broadcast is coalesced, so the echo of press N can arrive after
+        // press N+1 and would pull us back a step. Our own recent input outranks an echo.
+        if (syncMode === 'midi' && Date.now() - lastLocalNavAtRef.current < LOCAL_AUTHORITY_MS) return;
+
+        // An index only means the same item to both sides while both hold the same show
+        // order. Once the show is edited and one of us has not reloaded, applying it lands
+        // on the wrong song — resolve by song number where possible, and otherwise say so
+        // rather than jump (or, with auto-refresh on, just go and fetch the new version).
+        const match = resolveSyncIndex({
+          theirSig: state.showSig,
+          ourSig: showSigRef.current,
+          theirItemIndex: state.activeItemIndex,
+          theirSongNumber: state.songNumber,
+          ourItems: showItemsRef.current,
+        });
+        if (match.kind === 'stale') {
+          if (autoRefreshRef.current) {
+            void reloadShowRef.current?.();
+          } else {
+            setSyncMismatch({ songTitle: state.songTitle, at: Date.now() });
+          }
+          return;
+        }
+        const incomingItemIndex = match.kind === 'resolved' ? match.itemIndex : state.activeItemIndex;
+
         // Always persist the latest state so we can re-apply after songs load.
         pendingWsStateRef.current = {
-          activeItemIndex: typeof state.activeItemIndex === 'number' ? state.activeItemIndex : undefined,
+          activeItemIndex: typeof incomingItemIndex === 'number' ? incomingItemIndex : undefined,
           activeBlockIndex: typeof state.activeBlockIndex === 'number' ? state.activeBlockIndex : undefined,
         };
         // Track which song the operator is currently on for song-matching guard.
@@ -227,16 +315,22 @@ export const MusicianPage = () => {
         // takes effect on the next render, so the song check below must not read the
         // item we are leaving.
         let shownItemIndex = activeItemIndexRef.current;
-        if (typeof state.activeItemIndex === 'number' && syncMode !== 'midi') {
-          // In operator mode: follow the operator's song selection too.
+        if (typeof incomingItemIndex === 'number') {
+          // Follow the peer's item — in operator mode, and in MIDI mode too. MIDI mode
+          // used to ignore this because it is the navigation master, but that also meant a
+          // second device could never correct the first: fixing the position on a phone
+          // moved the operator and left the footswitch tablet behind, still broadcasting
+          // its old item on the next press. Our own input is protected by the authority
+          // window above, so following a peer here is safe.
+          //
           // Non-song items (media, bible) are NOT followed — the musician keeps
           // their current sheet while the operator shows announcement slides etc.
           // An index this show doesn't have is ignored rather than selected: it means
           // the operator is running a different show, and selecting it blanks the view.
-          const targetItem = showItemsRef.current[state.activeItemIndex];
+          const targetItem = showItemsRef.current[incomingItemIndex];
           if (targetItem && targetItem.type === 'song') {
-            handleSelectItemRef.current?.(state.activeItemIndex);
-            shownItemIndex = state.activeItemIndex;
+            handleSelectItemRef.current?.(incomingItemIndex);
+            shownItemIndex = incomingItemIndex;
           }
         }
 
@@ -257,7 +351,6 @@ export const MusicianPage = () => {
           dispatch(setPresentationItemAndBlock({ itemIndex: nextItemIndex, blockIndex: nextBlockIndex }));
         }
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       [dispatch, syncMode],
     ),
   });
@@ -302,9 +395,25 @@ export const MusicianPage = () => {
 
   // ── Active item derivation ───────────────────────────────────────
   const showItems: ShowItem[] = currentShow?.order ?? [];
+  /**
+   * Monitor mixing. Asks the operator what is on offer as soon as the relay is up and
+   * holds nothing else — the mixer's own state lives in the lazy chunk, so meters at
+   * 10 Hz never re-render this page and the PDF behind it.
+   */
+  const {
+    bridge: mixerBridge,
+    announcement: mixerAnnouncement,
+    available: mixerAvailable,
+    handleRelayMessage: handleMixerRelayMessage,
+  } = useMixerBridge({ send: wsSend, relayClientId, connected: wsStatus === 'connected' });
+  mixerRelayHandlerRef.current = handleMixerRelayMessage;
+
   // Keep refs in sync for use inside WS callbacks (avoid stale closures)
   activeItemIndexRef.current = activeItemIndex;
   showItemsRef.current = showItems;
+  showSigRef.current = showOrderSignature(currentShow);
+  autoRefreshRef.current = autoRefresh;
+  deviceIdRef.current = deviceId;
   const syncModeRef = useRef(syncMode);
   syncModeRef.current = syncMode;
   operatorItemIndexRef.current = operatorItemIndex;
@@ -362,9 +471,11 @@ export const MusicianPage = () => {
     setOrderEditorDirty(false);
   }, [activeSong, activeSongOrder]);
 
-  // Collect unique musician names from song orders for the settings picker
+  // Names to offer in the settings picker: the people on the account's bands, plus the
+  // order names already in use — which is what a "band" was before bands were configurable,
+  // and is still where a library that predates them keeps its names.
   const musicianNames = useMemo(() => {
-    const names = new Set<string>();
+    const names = new Set<string>(bandMemberNames);
     for (const song of Object.values(songs)) {
       if (song.order) {
         for (const orderName of Object.keys(song.order)) {
@@ -376,11 +487,12 @@ export const MusicianPage = () => {
       }
     }
     return Array.from(names).sort();
-  }, [songs]);
+  }, [songs, bandMemberNames]);
 
-  // Available band / order names from all loaded songs
+  // Bands to pick from: the configured ones, plus every order name found in the library so
+  // a song arranged for a band nobody has entered yet can still be followed.
   const availableBands = useMemo(() => {
-    const bands = new Set<string>(['Default']);
+    const bands = new Set<string>(['Default', ...bandNames]);
     for (const song of Object.values(songs)) {
       if (song.order) {
         for (const orderName of Object.keys(song.order)) {
@@ -390,7 +502,7 @@ export const MusicianPage = () => {
       }
     }
     return Array.from(bands).sort();
-  }, [songs]);
+  }, [songs, bandNames]);
 
   // Unique block names for area mapping editor — use the ordered sequence (deduplicated)
   // so the dropdown reflects the current order, including custom-ordered blocks.
@@ -482,11 +594,11 @@ export const MusicianPage = () => {
     songsLoadedRef.current = true;
     const pending = pendingWsStateRef.current;
     if (!pending) return;
-    // Local navigation only follows the pending state in operator mode. In MIDI mode this
-    // page is the navigation master: the pending state is whatever peer spoke last (e.g.
-    // the operator re-broadcasting because black was toggled), and adopting it here made
-    // the next MIDI next/prev song step from that stale item instead of the current one.
-    if (typeof pending.activeItemIndex === 'number' && syncModeRef.current !== 'midi') {
+    // Applied in MIDI mode too, matching `onStateUpdate`. This is the case where a peer's
+    // state arrived before the songs were ready, so the handler could not place it; the
+    // state itself was already validated there (a stale show version never reaches this
+    // ref, and neither does the relay's replay cache in MIDI mode).
+    if (typeof pending.activeItemIndex === 'number' && syncModeRef.current !== 'off') {
       // Only follow to song items — see the WS onStateUpdate handler.
       const targetItem = showItemsRef.current[pending.activeItemIndex];
       if (targetItem && targetItem.type === 'song') {
@@ -541,13 +653,40 @@ export const MusicianPage = () => {
   activeSongNumberRef.current = activeSongNumber;
 
   /** Broadcast musician sync via both WS relay (for browser peers) and IPC (for Electron operator window). */
-  const broadcastMidiSync = useCallback((data: Record<string, unknown>) => {
+  const broadcastMidiSync = useCallback((data: Record<string, unknown>, opts?: { local?: boolean }) => {
+    // Navigating here ourselves is what earns the authority window. Merely ANSWERING a
+    // peer's `get_state` must not open it: we would then ignore that peer's reply to our
+    // own answer, and a MIDI musician would stop mirroring the operator entirely.
+    if (opts?.local !== false) lastLocalNavAtRef.current = Date.now();
     // clientId lets our own receive socket recognise and drop the relay's echo.
-    const tagged = { ...data, clientId: WS_CLIENT_ID };
+    // senderRole/senderId/showSig let the operator tell a musician driving the show apart
+    // from a passive app instance, and tell whether our index means what it says — see
+    // `@/utils/syncProtocol`.
+    const tagged = {
+      ...data,
+      clientId: WS_CLIENT_ID,
+      senderRole: 'musician' as const,
+      senderId: deviceIdRef.current,
+      showSig: showSigRef.current,
+    };
     wsSendRef.current('musician_sync', tagged);
     // Also send directly to operator via Electron IPC when running in the desktop app
     window.api?.musicianSyncToOperator?.({ action: 'musician_sync', data: tagged });
   }, []);
+
+  // Answering a peer's `get_state` — declared here because the WS callback above needs it
+  // before `broadcastMidiSync` is defined.
+  answerGetStateRef.current = () => {
+    broadcastMidiSync(
+      {
+        activeItemIndex: activeItemIndexRef.current,
+        activeBlockIndex: operatorBlockIndexRef.current,
+        activeLineIndex: 0,
+        songNumber: activeSongNumberRef.current,
+      },
+      { local: false },
+    );
+  };
 
   /** User-initiated navigation (sidebar click, prev/next buttons) — disables sync first unless in midi mode */
   const handleUserSelectItem = useCallback(
@@ -909,6 +1048,34 @@ export const MusicianPage = () => {
           {LL.MUSICIAN.SHOW_MISMATCH_WARNING({ operatorShow: operatorWsShowTitle ?? '', currentShow: currentShow?.title ?? '' })}
         </Alert>
       </Snackbar>
+      {/* A peer is navigating a different version of the show, so its indices were refused.
+          Silently dropping them would leave the footswitch looking broken instead of
+          out of date. (With auto-refresh on we reload instead and never get here.) */}
+      <Snackbar open={!!syncMismatch} anchorOrigin={{ vertical: 'top', horizontal: 'center' }} sx={{ top: { xs: 72, sm: 80 } }}>
+        <Alert
+          severity="warning"
+          action={
+            <Stack direction="row" spacing={1}>
+              <Button color="inherit" size="small" onClick={() => setSyncMismatch(null)}>
+                {LL.CONNECTIVITY.SNACK_DISMISS()}
+              </Button>
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  setSyncMismatch(null);
+                  void handleRefreshContent();
+                }}
+              >
+                {LL.REMOTE.SYNC_RELOAD()}
+              </Button>
+            </Stack>
+          }
+          onClose={() => setSyncMismatch(null)}
+        >
+          {LL.REMOTE.SYNC_STALE_MUSICIAN()}
+        </Alert>
+      </Snackbar>
       {/* Operator cleared the connected clients — we deliberately do not auto-reconnect,
           so the musician decides when to come back. */}
       <Snackbar open={wsStatus === 'dropped_by_operator'} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
@@ -976,6 +1143,8 @@ export const MusicianPage = () => {
         blockIndicator={blockIndicator}
         textSize={textSize}
         showFooter={showFooter}
+        mixerCompact={mixerCompact}
+        mixerAvailable={mixerAvailable}
         musicianNames={musicianNames}
         availableBands={availableBands}
         setQrOpen={(open) => {
@@ -1074,7 +1243,17 @@ export const MusicianPage = () => {
             onToggleAutoRefresh={handleToggleAutoRefresh}
             orderEditorOpen={orderEditorOpen}
             onToggleOrderEditor={() => setOrderEditorOpen((prev) => !prev)}
+            mixerAvailable={mixerAvailable}
+            mixerOpen={mixerOpen}
+            onToggleMixer={() => {
+              setMixerOpen((open) => {
+                if (!open) trackEvent('modal_opened', undefined, undefined, { modal: 'monitor_mixer' });
+                return !open;
+              });
+            }}
           />
+
+          <MixerLauncher open={mixerOpen} bridge={mixerBridge} announcement={mixerAnnouncement} onClose={() => setMixerOpen(false)} />
 
           {/* Main content */}
           {!currentShow ? (

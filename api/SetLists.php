@@ -5,11 +5,11 @@ require_once(__DIR__ . '/RestController.php');
 /**
  * Set Lists — a reusable, account-scoped planning layer on top of the song library.
  *
- * GET    /rest/SetLists          → every set list of the account, with entries and tag
- *                                  assignments nested. Set lists are small (tens of songs),
- *                                  so one round trip keeps the UI simple.
- * POST   /rest/SetLists          → { name }        create
- * PUT    /rest/SetLists/{id}     → { name }        rename
+ * GET    /rest/SetLists          → every set list of the account, with entries, tag
+ *                                  assignments and band ids nested. Set lists are small
+ *                                  (tens of songs), so one round trip keeps the UI simple.
+ * POST   /rest/SetLists          → { name, bandIds? }         create
+ * PUT    /rest/SetLists/{id}     → { name?, bandIds? }        partial update
  * DELETE /rest/SetLists/{id}     → delete (entries + tag assignments cascade)
  *
  * Entries and tag assignments are managed through /rest/SetListEntries.
@@ -54,6 +54,29 @@ class SetLists extends RestController
             ');
         $stmt->bind_param('i', $account)->execute()->fetchAll($tagRows)->close();
 
+        // Band assignments for every list of the account — one query, same reasoning as above.
+        // Guarded because the table only exists after migration 23: a deployment running the
+        // new code against the old schema still gets its set lists, minus the band chips.
+        $bandRows = [];
+        try {
+            $stmt = self::prepare('
+                    SELECT sb.`set_list_id`, sb.`band_id`
+                    FROM `set_list_bands` sb
+                    INNER JOIN `set_lists` l ON l.`id` = sb.`set_list_id`
+                    INNER JOIN `bands` b ON b.`id` = sb.`band_id`
+                    WHERE l.`account` = ?
+                    ORDER BY b.`sort_order`, b.`name`
+                ');
+            $stmt->bind_param('i', $account)->execute()->fetchAll($bandRows)->close();
+        } catch (\Throwable $e) {
+            $bandRows = [];
+        }
+
+        $bandsByList = [];
+        foreach ($bandRows as $row) {
+            $bandsByList[(int)$row['set_list_id']][] = (int)$row['band_id'];
+        }
+
         $tagsByEntry = [];
         foreach ($tagRows as $row) {
             $tagsByEntry[(int)$row['set_list_entry_id']][] = [
@@ -82,6 +105,7 @@ class SetLists extends RestController
             $result[] = [
                 'id' => $id,
                 'name' => $list['name'],
+                'bandIds' => $bandsByList[$id] ?? [],
                 'createdAt' => $list['created_at'],
                 'updatedAt' => $list['updated_at'],
                 'entries' => $entriesByList[$id] ?? [],
@@ -116,9 +140,14 @@ class SetLists extends RestController
         $stmt = self::prepare('INSERT INTO `set_lists` (`account`, `name`, `sort_order`) VALUES (?, ?, ?)');
         $stmt->bind_param('isi', $account, $name, $sortOrder)->execute()->id($id)->close();
 
+        if ($req->params->provided('bandIds')) {
+            $this->writeBandIds($account, (int)$id, $req->params->getAsArray('bandIds', []));
+        }
+
         $res->success([
             'id' => (int)$id,
             'name' => $name,
+            'bandIds' => $this->fetchBandIds($account, (int)$id),
             'entries' => [],
             'message' => 'Set list created',
         ]);
@@ -132,35 +161,89 @@ class SetLists extends RestController
         }
 
         $req->path->checkNumeric(0);
-        $req->params->check('name');
 
         $id = $req->path->getAsInt(0);
         $account = $req->account;
-        $name = trim((string)$req->params->get('name'));
 
-        if ($name === '') {
-            $res->error(400, 'Set list name must not be empty');
+        // Partial update: the band picker saves without touching the name, and a rename
+        // must not have to send the bands back with it.
+        if (!$req->params->provided('name') && !$req->params->provided('bandIds')) {
+            $res->error(400, 'No fields to update');
         }
 
-        $stmt = self::prepare('SELECT `id` FROM `set_lists` WHERE `account` = ? AND `name` = ? AND `id` <> ?');
-        $stmt->bind_param('isi', $account, $name, $id)->execute()->fetchOne($clash)->close();
-        if ($clash) {
-            $res->error(409, 'A set list with this name already exists');
+        $stmt = self::prepare('SELECT `id`, `name` FROM `set_lists` WHERE `id` = ? AND `account` = ?');
+        $stmt->bind_param('ii', $id, $account)->execute()->fetchOne($list)->close();
+        if (!$list) {
+            $res->error(404, 'Set list not found');
         }
 
-        $stmt = self::prepare('UPDATE `set_lists` SET `name` = ? WHERE `id` = ? AND `account` = ?');
-        $stmt->bind_param('sii', $name, $id, $account)->execute()->affected($rows)->close();
+        $name = $list['name'];
 
-        if ($rows === 0) {
-            // Either the row is gone or it belongs to another account — same answer either way.
-            $stmt = self::prepare('SELECT `id` FROM `set_lists` WHERE `id` = ? AND `account` = ?');
-            $stmt->bind_param('ii', $id, $account)->execute()->fetchOne($found)->close();
-            if (!$found) {
-                $res->error(404, 'Set list not found');
+        if ($req->params->provided('name')) {
+            $name = trim((string)$req->params->get('name'));
+
+            if ($name === '') {
+                $res->error(400, 'Set list name must not be empty');
             }
+
+            $stmt = self::prepare('SELECT `id` FROM `set_lists` WHERE `account` = ? AND `name` = ? AND `id` <> ?');
+            $stmt->bind_param('isi', $account, $name, $id)->execute()->fetchOne($clash)->close();
+            if ($clash) {
+                $res->error(409, 'A set list with this name already exists');
+            }
+
+            $stmt = self::prepare('UPDATE `set_lists` SET `name` = ? WHERE `id` = ? AND `account` = ?');
+            $stmt->bind_param('sii', $name, $id, $account)->execute()->close();
         }
 
-        $res->success(['id' => $id, 'name' => $name, 'message' => 'Set list renamed']);
+        if ($req->params->provided('bandIds')) {
+            $this->writeBandIds($account, $id, $req->params->getAsArray('bandIds', []));
+        }
+
+        $res->success([
+            'id' => $id,
+            'name' => $name,
+            'bandIds' => $this->fetchBandIds($account, $id),
+            'message' => 'Set list updated',
+        ]);
+    }
+
+    /** The bands assigned to one set list, in the order the band list itself is shown in. */
+    private function fetchBandIds(int $account, int $setListId): array
+    {
+        try {
+            $stmt = self::prepare('
+                    SELECT sb.`band_id`
+                    FROM `set_list_bands` sb
+                    INNER JOIN `bands` b ON b.`id` = sb.`band_id`
+                    WHERE sb.`set_list_id` = ? AND b.`account` = ?
+                    ORDER BY b.`sort_order`, b.`name`
+                ');
+            $stmt->bind_param('ii', $setListId, $account)->execute()->fetchAll($rows)->close();
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        return array_map(fn ($row) => (int)$row['band_id'], $rows);
+    }
+
+    /**
+     * Replace the set list's band assignments. Ids the account does not own are dropped
+     * rather than rejected — a band deleted elsewhere must not cost the user their save.
+     */
+    private function writeBandIds(int $account, int $setListId, array $bandIds): void
+    {
+        $stmt = self::prepare('DELETE FROM `set_list_bands` WHERE `set_list_id` = ?');
+        $stmt->bind_param('i', $setListId)->execute()->close();
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $bandIds), fn ($id) => $id > 0)));
+        foreach ($ids as $bandId) {
+            $stmt = self::prepare('
+                    INSERT IGNORE INTO `set_list_bands` (`set_list_id`, `band_id`)
+                    SELECT ?, `id` FROM `bands` WHERE `id` = ? AND `account` = ?
+                ');
+            $stmt->bind_param('iii', $setListId, $bandId, $account)->execute()->close();
+        }
     }
 
     /**

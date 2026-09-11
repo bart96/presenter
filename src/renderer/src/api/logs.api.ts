@@ -20,7 +20,6 @@ const logsApi = presenterApi.injectEndpoints({
   endpoints: (build) => ({
     getLogs: build.query<ApiSuccess<LogsResponse>, { offset?: number; limit?: number; severity?: string; version?: number }>({
       query: (arg) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { version: _version, ...rest } = arg ?? {};
         return {
           url: 'rest/Log',

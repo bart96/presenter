@@ -25,6 +25,7 @@ if (!is_array($config)) {
 }
 
 $configuredToken = is_string($config['token'] ?? null) ? trim($config['token']) : '';
+$isDevelopment = !empty($config['development']);
 $wsHost = is_array($config['ws_host'] ?? null) ? $config['ws_host'] : [];
 
 // ── Helper: render a minimal error page ───────────────────────────────────────
@@ -146,6 +147,17 @@ $debugMode  = isset($_GET['debug']);
       transition: opacity var(--fade);
     }
     #status-bar.hide { opacity: 0; pointer-events: none; }
+
+    /* Dev deployment marker — see 'development' in config.php. Fixed and click-through,
+       so it costs the projection no space and can never swallow a tap. */
+    #dev-stripe {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      z-index: 2147483647;
+      pointer-events: none;
+      background: repeating-linear-gradient(135deg, #f0a020 0 10px, #1a1206 10px 20px);
+    }
 
     #status-dot {
       width: 8px; height: 8px;
@@ -371,6 +383,9 @@ $debugMode  = isset($_GET['debug']);
   </style>
 </head>
 <body>
+<?php if ($isDevelopment) { ?>
+  <div id="dev-stripe" role="note" aria-label="Development deployment"></div>
+<?php } ?>
   <div id="status-bar">
     <div id="status-dot"></div>
     <span id="status-text">Connecting…</span>

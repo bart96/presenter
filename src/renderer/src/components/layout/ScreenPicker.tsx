@@ -61,27 +61,36 @@ export const screenIdForBounds = (
   return null;
 };
 
-export const ScreenPicker = ({ screens, value, onChange, windows = [], height = 190, maxWidth = 500 }: ScreenPickerProps) => {
-  const { LL } = useI18nContext();
-
-  if (screens.length === 0) return null;
-
-  // The bounding box over all screens, in desktop coordinates. Screens can start at
-  // negative coordinates (a display placed left of the primary one), so the origin is
-  // the minimum corner rather than 0,0.
+/**
+ * The desktop-to-pixels mapping shared by every view that draws the screen arrangement.
+ *
+ * The bounding box is taken over all screens rather than from 0,0 — a display placed left
+ * of the primary one starts at a negative coordinate. One scale factor serves both axes so
+ * aspect ratios survive: a 16:9 screen has to look 16:9, or the picture stops matching the
+ * desk it describes.
+ */
+export const deskLayout = (
+  screens: ScreenInfo[],
+  maxWidth: number,
+  height: number,
+  pad = 8,
+): { scale: number; boardW: number; boardH: number; minX: number; minY: number } => {
   const minX = Math.min(...screens.map((s) => s.bounds.x));
   const minY = Math.min(...screens.map((s) => s.bounds.y));
   const maxX = Math.max(...screens.map((s) => s.bounds.x + s.bounds.width));
   const maxY = Math.max(...screens.map((s) => s.bounds.y + s.bounds.height));
   const totalW = Math.max(1, maxX - minX);
   const totalH = Math.max(1, maxY - minY);
+  const scale = Math.min((maxWidth - pad * 2) / totalW, (height - pad * 2) / totalH);
+  return { scale, boardW: totalW * scale, boardH: totalH * scale, minX, minY };
+};
 
-  // One scale factor for both axes keeps the aspect ratio — a 16:9 screen must look 16:9,
-  // otherwise the picture stops matching the desk it describes.
-  const PAD = 8;
-  const scale = Math.min((maxWidth - PAD * 2) / totalW, (height - PAD * 2) / totalH);
-  const boardW = totalW * scale;
-  const boardH = totalH * scale;
+export const ScreenPicker = ({ screens, value, onChange, windows = [], height = 190, maxWidth = 500 }: ScreenPickerProps) => {
+  const { LL } = useI18nContext();
+
+  if (screens.length === 0) return null;
+
+  const { scale, boardW, boardH, minX, minY } = deskLayout(screens, maxWidth, height);
 
   return (
     <Stack spacing={0.5}>

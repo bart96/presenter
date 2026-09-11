@@ -39,8 +39,8 @@ The easiest route is the **GitHub release**: every Presenter release carries
 `ws-server-<version>.zip` and `redeploy.sh` as assets, built from that same commit.
 (They are published by `npm run publish` / `npm run publish:artifacts` in the app repo —
 the relay can be re-released on its own, without rebuilding the desktop app.)
-Download both, skip to *2b. Updating an existing deployment* (or *2. Run with Docker
-Compose* for a fresh host), and ignore the build step below.
+Download both, skip to _2b. Updating an existing deployment_ (or _2. Run with Docker
+Compose_ for a fresh host), and ignore the build step below.
 
 ### 1. Build it yourself
 
@@ -125,7 +125,7 @@ it holds this host's `BACKEND_URL`, published port and `SYNC_TTL_SECONDS`, which
 survive a redeploy. Build with `node scripts/deploy.js --with-compose` only when
 bootstrapping a host that has no compose file yet.
 
-The script verifies the zip, the compose file and `unzip` are all present *before* it
+The script verifies the zip, the compose file and `unzip` are all present _before_ it
 deletes anything, so a bad upload cannot leave you with a half-emptied folder. Pass
 `-y` to skip the confirmation prompt.
 
@@ -234,11 +234,11 @@ belonging to account `12345` will never receive messages from account `67890`.
 
 ## Environment variables
 
-| Variable           | Default | Description                                                 |
-| ------------------ | ------- | ----------------------------------------------------------- |
-| `PORT`             | `9001`  | TCP port the server listens on                              |
-| `BACKEND_URL`      | –       | Base URL of the PHP backend; required for viewer-token auth |
-| `SYNC_TTL_SECONDS` | `3600`  | How long the last selection stays current (`0` = forever)   |
+| Variable            | Default | Description                                                 |
+| ------------------- | ------- | ----------------------------------------------------------- |
+| `PORT`              | `9001`  | TCP port the server listens on                              |
+| `BACKEND_URL`       | –       | Base URL of the PHP backend; required for viewer-token auth |
+| `SYNC_TTL_SECONDS`  | `3600`  | How long the last selection stays current (`0` = forever)   |
 | `TRACE_BUFFER_SIZE` | `500`   | Messages kept per account for the admin monitor (50–5000)   |
 
 ### Selection TTL
@@ -266,13 +266,14 @@ clear their display if the relay restarts while they are watching.
 
 ### Client → Server
 
-| Message                                             | When          | Description                                        |
-| --------------------------------------------------- | ------------- | -------------------------------------------------- |
-| `{ action: "auth", account: <number>, client?: {} }` | First message | Authenticate with an account number                |
-| `{ action: "client_info", client: {} }`             | After auth    | Update this client's descriptor (no reconnect)     |
-| `{ action: "disconnect_peers" }`                    | After auth    | Close every other client of the account (op. only) |
+| Message                                               | When          | Description                                        |
+| ----------------------------------------------------- | ------------- | -------------------------------------------------- |
+| `{ action: "auth", account: <number>, client?: {} }`  | First message | Authenticate with an account number                |
+| `{ action: "client_info", client: {} }`               | After auth    | Update this client's descriptor (no reconnect)     |
+| `{ action: "disconnect_peers" }`                      | After auth    | Close every other client of the account (op. only) |
 | `{ action: "auth", role: "monitor", token, account }` | First message | Attach as an admin message monitor (see below)     |
-| Any JSON                                            | After auth    | Relayed to all peers with the same account         |
+| Any JSON                                              | After auth    | Relayed to all peers with the same account         |
+| Any JSON with `to`                                    | After auth    | Relayed only to the named peers — see below        |
 
 The optional `client` descriptor is `{ role, mode?, name? }` with `role` one of
 `operator`, `musician`, `remote`, `viewer` (anything else becomes `unknown`),
@@ -281,18 +282,37 @@ display name. It is never used for routing — the relay only mirrors it back to
 the account's peers so the operator can see **what** is connected, not just how
 many. Clients that omit it keep working and appear as `unknown`.
 
+#### Addressed delivery (`to`)
+
+A relayed message may name its recipients: `to` is a client id, or an array of them, and
+only those peers receive it. Everything without a `to` still goes to every peer of the
+account, exactly as before — this is additive, and a client that never sets it cannot tell
+the difference.
+
+Client ids come from `auth_ok` (`clientId`), which is the socket's own id.
+
+It exists for the monitor mixer, which forwards a mixing desk's meters at 10 Hz. Fanning
+that out to the whole account would push audio levels at presentation windows and text
+viewers that have no use for them and pay for every byte.
+
+An **older relay ignores `to` and broadcasts anyway**, so senders set it regardless and
+receivers check it themselves. That keeps a mixed deployment correct — just chattier — but
+it is why monitor mixing wants relay ≥ 1.3.0 in front of it.
+
 ### Server → Client
 
-| Message                                                            | Description                                         |
-| ------------------------------------------------------------------ | --------------------------------------------------- |
-| `{ type: "auth_ok", account, count, others, peers: [], syncTtlSeconds }` | Authentication successful                      |
-| `{ type: "peer_count", count, others, peers: [] }`                 | Peer count + descriptors changed (also every 30 s)  |
-| `{ type: "peers_disconnected", count }`                            | Answer to `disconnect_peers`                        |
-| `{ type: "sync_expired", ttlSeconds }`                             | The cached selection went stale — clear the display |
-| `{ type: "error", error: "..." }`                                  | Protocol error                                      |
+| Message                                                                            | Description                                         |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `{ type: "auth_ok", account, count, others, peers: [], clientId, syncTtlSeconds }` | Authentication successful                           |
+| `{ type: "peer_count", count, others, peers: [] }`                                 | Peer count + descriptors changed (also every 30 s)  |
+| `{ type: "peers_disconnected", count }`                                            | Answer to `disconnect_peers`                        |
+| `{ type: "sync_expired", ttlSeconds }`                                             | The cached selection went stale — clear the display |
+| `{ type: "error", error: "..." }`                                                  | Protocol error                                      |
 
 A replayed selection additionally carries `replay: true` and `ageMs` (how long ago it was
 set), so a client can start its local expiry countdown from the right moment.
+
+`clientId` is this socket's own id, for addressing a reply back to a peer with `to`.
 
 `peers` lists the descriptors of the recipient's **other** clients, so
 `peers.length === others`. Attached monitors are included in it, deliberately: an operator
@@ -334,20 +354,20 @@ replay.
 
 ### Monitor protocol
 
-| Client → Server                                       | Description                                          |
-| ----------------------------------------------------- | ---------------------------------------------------- |
-| `{ action: "monitor_subscribe", account }`            | Switch watched account (`null` = all); replays backlog |
-| `{ action: "monitor_config", bufferSize }`            | Resize the ring buffer at runtime (50–5000)          |
-| `{ action: "monitor_clear" }`                         | Drop the buffer for the watched scope                |
+| Client → Server                            | Description                                            |
+| ------------------------------------------ | ------------------------------------------------------ |
+| `{ action: "monitor_subscribe", account }` | Switch watched account (`null` = all); replays backlog |
+| `{ action: "monitor_config", bufferSize }` | Resize the ring buffer at runtime (50–5000)            |
+| `{ action: "monitor_clear" }`              | Drop the buffer for the watched scope                  |
 
-| Server → Client                                                     | Description                                    |
-| -------------------------------------------------------------------- | ---------------------------------------------- |
-| `{ type: "monitor_ok", account, bufferSize, limits, version, accounts, entries }` | Attached; `entries` is the backlog |
-| `{ type: "trace", entry }`                                          | One live event                                 |
-| `{ type: "monitor_peers", accounts, bufferSize }`                   | Live connection census, per account            |
-| `{ type: "monitor_config", bufferSize }`                            | Buffer size changed (by any monitor)           |
-| `{ type: "monitor_cleared", account }`                              | Buffer dropped                                 |
-| `{ type: "auth_error", error }`                                     | Token rejected; socket closes with 4004        |
+| Server → Client                                                                   | Description                             |
+| --------------------------------------------------------------------------------- | --------------------------------------- |
+| `{ type: "monitor_ok", account, bufferSize, limits, version, accounts, entries }` | Attached; `entries` is the backlog      |
+| `{ type: "trace", entry }`                                                        | One live event                          |
+| `{ type: "monitor_peers", accounts, bufferSize }`                                 | Live connection census, per account     |
+| `{ type: "monitor_config", bufferSize }`                                          | Buffer size changed (by any monitor)    |
+| `{ type: "monitor_cleared", account }`                                            | Buffer dropped                          |
+| `{ type: "auth_error", error }`                                                   | Token rejected; socket closes with 4004 |
 
 ### Trace entry
 

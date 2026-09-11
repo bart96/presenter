@@ -13,15 +13,7 @@ import {
 } from '@mui/icons-material';
 
 export type PositionValue =
-  | 'top left'
-  | 'top center'
-  | 'top right'
-  | 'center left'
-  | 'center'
-  | 'center right'
-  | 'bottom left'
-  | 'bottom center'
-  | 'bottom right';
+  'top left' | 'top center' | 'top right' | 'center left' | 'center' | 'center right' | 'bottom left' | 'bottom center' | 'bottom right';
 
 const CELLS: { pos: PositionValue; Icon: ElementType }[] = [
   { pos: 'top left', Icon: NWIcon },

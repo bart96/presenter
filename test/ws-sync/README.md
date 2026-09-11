@@ -65,6 +65,27 @@ Fixed by teaching the viewer and the relay's cache to tell the two apart (`conte
 present only on the operator's payload) — `viewer/index.php` and
 `ws-server/src/server.ts`. Scenarios 3, 4, 5 and 7 cover it.
 
+### The 30.08. service: the projection snapping back to the first song
+
+Captured from a live relay log. Three things compounded, and scenarios 12 and 15–18 cover
+the fixes:
+
+1. **Every open copy of the app answered on the show's behalf.** The relay fans a broadcast
+   out to all peers regardless of role, so an operator could not tell another operator's
+   broadcast from a musician driving the show. A footswitch `toggle_black` reached every
+   instance; each flipped its own black state, each re-broadcast its whole position, and
+   the live operator followed whichever spoke last — a background laptop sitting on item 0.
+   A musician connecting or resyncing triggered the same thing through `get_state`.
+   Fixed by `senderRole` on the payload plus the live-operator gate (`isLiveOperator`).
+2. **Indices meant different items on different devices.** The show was reordered
+   mid-service; every client that had not reloaded was one item off, and nothing checked.
+   Fixed by `showSig` — a content hash of the order — with the song number as a fallback
+   that resolves the index instead of refusing it (`resolveSyncIndex`).
+3. **A second device could not fix the first.** MIDI mode ignored every incoming index on
+   the grounds that it was the navigation master, so correcting the position on a phone
+   moved the operator and left the footswitch tablet behind. MIDI mode now follows peers,
+   protected by a short local-authority window so its own echo cannot pull it backwards.
+
 ## Adding a scenario
 
 Append a `scenario(name, description, fn)` call in `run.mjs`. The function receives

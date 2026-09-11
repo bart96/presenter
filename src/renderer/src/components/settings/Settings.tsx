@@ -23,6 +23,8 @@ import { useGetSettings } from '@/store/settingsSlice';
 import { KeyboardMappingEditor } from '@/components/settings/KeyboardMappingEditor';
 import { exportSettings, importSettings, applyImportedSettings, type SettingsDiff } from '@/utils/settingsExport';
 import { CompanionHelper } from '@/components/settings/CompanionHelper';
+import { AudioMixerSection } from '@/components/settings/AudioMixerSection';
+import { BandsSection } from '@/components/settings/BandsSection';
 import { SettingsImportReview } from '@/components/settings/SettingsImportReview';
 import { DesktopAppDownloadModal } from '@/components/settings/DesktopAppBanner';
 import { AutoUpdaterSection } from '@/components/settings/AutoUpdaterSection';
@@ -69,11 +71,13 @@ export const Settings = (props: { open: boolean; setOpen: (open: boolean) => voi
     slots: {
       globalStyle: () => <GlobalStyleRow />,
       showTitleTemplate: () => <ShowTitleTemplateRow />,
+      bands: () => <BandsSection />,
       songLanguages: () => <SongLanguagesBlock />,
       viewerToken: () => <ViewerTokenSection />,
       remoteCommands: () => <RemoteCommandsBlock />,
       keyboardMapping: () => <KeyboardMappingEditor />,
       companion: () => <CompanionBlock onOpen={() => setCompanionOpen(true)} />,
+      audioMixer: () => <AudioMixerSection />,
       autoUpdater: () => <AutoUpdaterSection />,
       credentials: () => <CredentialsSection />,
       desktopDownload: () => <DesktopDownloadBlock onOpen={() => setDesktopAppModalOpen(true)} />,

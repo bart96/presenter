@@ -6,20 +6,11 @@ import { useGetShowsRevisionQuery, useLazyGetShowQuery } from '@/api/shows.api';
 import { useGetSessionQuery } from '@/api/session.api';
 import { useGetSettings } from '@/store/settingsSlice';
 import type { Show } from '@/api/shows.api';
+import { normalizeOrderSig } from '@/utils/syncProtocol';
 
 const POLL_INTERVAL_MS = 30_000;
 /** Delay before re-attempting a failed classification fetch (shorter than the poll). */
 const RETRY_DELAY_MS = 10_000;
-
-const normalizeOrderSig = (show: Show | null | undefined): string => {
-  const normalized = (show?.order ?? []).map((item) => {
-    const entries = Object.entries(item as Record<string, unknown>)
-      .filter(([, value]) => value !== undefined)
-      .sort(([a], [b]) => a.localeCompare(b));
-    return Object.fromEntries(entries);
-  });
-  return JSON.stringify(normalized);
-};
 
 /**
  * Polls the server every 30 s for changes to the currently loaded show and flags when

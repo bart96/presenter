@@ -16,6 +16,7 @@
  * line references so the next reader can diff them.
  */
 import { WebSocket } from 'ws';
+import { resolveSyncIndex, showOrderSignature } from './syncProtocol.mjs';
 
 let clientSeq = 0;
 
@@ -180,6 +181,13 @@ export function makeShow() {
  * - outgoing musician_sync payload → usePresentationSync.ts:633-659
  * - broadcast dedupe (contentKey)  → usePresentationSync.ts:664-677
  * - replay is ignored              → useWsOperator.ts:137-145
+ * - other operators are ignored    → useWsOperator.ts:144-155
+ * - live-operator gate             → usePresentationSync.ts (isLiveOperator)
+ * - show-version gate              → usePresentationSync.ts (resolveSyncIndex)
+ *
+ * `isLive` stands in for `isLiveOperator()`: the real hook derives it from whether this
+ * instance has a presentation window open, which has no meaning here, so scenarios set it
+ * directly. It defaults to true — a lone operator in a test is the one driving the show.
  */
 export class OperatorClient extends BaseClient {
   constructor({
@@ -189,10 +197,16 @@ export class OperatorClient extends BaseClient {
     midiTrackingMaster = 'midi',
     remoteControlCommands = {},
     resetBlackOnSwitch = false,
+    isLive = true,
+    deviceId,
     name = 'operator',
   }) {
     super({ url, account, name, clientInfo: { role: 'operator' } });
     this.show = show;
+    this.isLive = isLive;
+    this.deviceId = deviceId ?? `operator-${Math.random().toString(36).slice(2, 10)}`;
+    /** Peers whose state we refused because they hold a different show order. */
+    this.rejectedStale = [];
     this.midiTrackingMaster = midiTrackingMaster;
     this.remoteControlCommands = remoteControlCommands;
     this.resetBlackOnSwitch = resetBlackOnSwitch;
@@ -205,17 +219,24 @@ export class OperatorClient extends BaseClient {
   }
 
   onAuthOk() {
+    // Following a MIDI master: ask where the show is rather than assume our own position
+    // is the truth — useWsOperator.ts (requestStateOnConnect).
+    if (this.midiTrackingMaster === 'midi') this.send({ action: 'get_state', id: 'operator-init' });
     this.emit();
   }
 
   onMessage(msg) {
     if (msg.action === 'musician_sync' && msg.data) {
       if (msg.replay) return; // useWsOperator.ts:142
+      // Another operator is not navigation input for this one — useWsOperator.ts:152.
+      if (msg.data.senderRole === 'operator') return;
       this.handleMusicianSync(msg.data);
     } else if (msg.action === 'get_state') {
+      if (!this.isLive) return; // usePresentationSync.ts — handleGetState
       this.lastKey = ''; // usePresentationSync.ts:128
       this.emit();
     } else if (msg.action === 'remote_command' && msg.data) {
+      if (!this.isLive) return; // usePresentationSync.ts — handleRemoteCommand
       this.handleRemoteCommand(msg.data);
     }
   }
@@ -245,15 +266,33 @@ export class OperatorClient extends BaseClient {
     return [...song.blocks, { name: 'Copyright', copyright: true }];
   }
 
+  get showSig() {
+    return showOrderSignature(this.show);
+  }
+
   handleMusicianSync(state) {
     if (this.midiTrackingMaster !== 'midi') return;
     const hasItem = typeof state.activeItemIndex === 'number';
     const hasBlock = typeof state.activeBlockIndex === 'number';
+
+    const match = resolveSyncIndex({
+      theirSig: state.showSig,
+      ourSig: this.showSig,
+      theirItemIndex: state.activeItemIndex,
+      theirSongNumber: state.songNumber,
+      ourItems: this.show.order,
+    });
+    if (match.kind === 'stale') {
+      this.rejectedStale.push({ songNumber: state.songNumber, itemIndex: state.activeItemIndex });
+      return;
+    }
+    const itemIndex = match.kind === 'resolved' ? match.itemIndex : state.activeItemIndex;
+
     const clampItem = (idx) => Math.max(0, Math.min(idx, Math.max(0, this.itemCount - 1)));
     if (hasItem && hasBlock) {
-      this.setItemAndBlock(clampItem(state.activeItemIndex), state.activeBlockIndex);
+      this.setItemAndBlock(clampItem(itemIndex), state.activeBlockIndex);
     } else if (hasItem) {
-      this.setActiveItemIndex(clampItem(state.activeItemIndex));
+      this.setActiveItemIndex(clampItem(itemIndex));
     } else if (hasBlock) {
       this.setActiveBlockIndex(state.activeBlockIndex);
     }
@@ -371,6 +410,9 @@ export class OperatorClient extends BaseClient {
             ? item?.label || 'Media'
             : '';
     return {
+      senderRole: 'operator',
+      senderId: this.deviceId,
+      showSig: this.showSig,
       activeItemIndex: this.state.activeItemIndex,
       activeBlockIndex: this.state.activeBlockIndex,
       activeLineIndex: this.state.activeLineIndex,
@@ -420,8 +462,10 @@ export class OperatorClient extends BaseClient {
     ].join('|');
   }
 
-  /** Broadcast unless the dedupe key says nothing observable changed. */
+  /** Broadcast unless the dedupe key says nothing observable changed — and unless this
+   *  instance is passive, in which case it has nothing anyone should hear. */
   emit() {
+    if (!this.isLive) return false;
     const key = this.contentKey();
     if (key === this.lastKey) return false;
     this.lastKey = key;
@@ -442,6 +486,9 @@ export class OperatorClient extends BaseClient {
 
 // ── Musician ────────────────────────────────────────────────────────────────
 
+/** MusicianPage.tsx — LOCAL_AUTHORITY_MS. */
+export const LOCAL_AUTHORITY_MS = 600;
+
 /**
  * Mirrors `MusicianPage` + `useWsSync`.
  *
@@ -451,13 +498,23 @@ export class OperatorClient extends BaseClient {
  * - order-tag / mapping tap  → MusicianPage.tsx:676-705
  * - outgoing sync payload    → MusicianPage.tsx:544-550 (broadcastMidiSync)
  * - get_state on auth        → useWsSync.ts:132-138
+ * - local-authority window   → MusicianPage.tsx (LOCAL_AUTHORITY_MS)
+ * - show-version gate        → MusicianPage.tsx (resolveSyncIndex)
+ *
+ * `now()` is injectable so a scenario can drive the authority window without sleeping.
  */
 export class MusicianClient extends BaseClient {
-  constructor({ url, account, show, syncMode = 'midi', musicianName = 'Musician', name }) {
+  constructor({ url, account, show, syncMode = 'midi', musicianName = 'Musician', deviceId, now, name }) {
     super({ url, account, name: name ?? `musician(${syncMode})`, clientInfo: { role: 'musician', mode: syncMode, name: musicianName } });
     this.show = show;
     this.syncMode = syncMode;
     this.clientId = `musician-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    this.deviceId = deviceId ?? this.clientId;
+    /** Injectable clock for the local-authority window. */
+    this.now = now ?? (() => Date.now());
+    this.lastLocalNavAt = 0;
+    /** Peers whose state we refused because they hold a different show order. */
+    this.rejectedStale = [];
     /** This page's own item selection (activeItemIndex in MusicianPage). */
     this.localItemIndex = 0;
     /** Redux mirror of the operator position (operatorItemIndex / operatorActiveBlockIndex). */
@@ -474,33 +531,73 @@ export class MusicianClient extends BaseClient {
     if (this.syncMode !== 'off') this.send({ action: 'get_state', id: 'init' }); // useWsSync.ts:134
   }
 
+  /** A peer asked where the show is; in MIDI mode we are the one who knows. */
+  answerGetState() {
+    if (this.syncMode !== 'midi') return;
+    this.broadcastMidiSync(
+      {
+        activeItemIndex: this.localItemIndex,
+        activeBlockIndex: this.operatorBlockIndex,
+        activeLineIndex: 0,
+        songNumber: this.activeSongNumber,
+      },
+      { local: false },
+    );
+  }
+
+  get showSig() {
+    return showOrderSignature(this.show);
+  }
+
   onMessage(msg) {
+    if (msg.action === 'get_state') {
+      this.answerGetState();
+      return;
+    }
     if (msg.action !== 'musician_sync' || !msg.data) return;
     const state = { ...msg.data, replay: !!msg.replay };
     if (this.syncMode === 'off') return; // MusicianPage.tsx:201
     if (state.clientId && state.clientId === this.clientId) return; // :205
+    if (state.senderRole === 'musician' && state.senderId && state.senderId === this.deviceId) return;
     if (state.replay && this.syncMode === 'midi') return; // :212
+    // Our own recent input outranks an echo of it — MusicianPage.tsx (LOCAL_AUTHORITY_MS).
+    if (this.syncMode === 'midi' && this.now() - this.lastLocalNavAt < LOCAL_AUTHORITY_MS) return;
+
+    const match = resolveSyncIndex({
+      theirSig: state.showSig,
+      ourSig: this.showSig,
+      theirItemIndex: state.activeItemIndex,
+      theirSongNumber: state.songNumber,
+      ourItems: this.show.order,
+    });
+    if (match.kind === 'stale') {
+      this.rejectedStale.push({ songNumber: state.songNumber, itemIndex: state.activeItemIndex });
+      return;
+    }
+    const incomingItemIndex = match.kind === 'resolved' ? match.itemIndex : state.activeItemIndex;
 
     this.pendingWsState = {
-      activeItemIndex: typeof state.activeItemIndex === 'number' ? state.activeItemIndex : undefined,
+      activeItemIndex: typeof incomingItemIndex === 'number' ? incomingItemIndex : undefined,
       activeBlockIndex: typeof state.activeBlockIndex === 'number' ? state.activeBlockIndex : undefined,
     };
     if (typeof state.songNumber === 'number') this.operatorSongNumber = state.songNumber;
     if (typeof state.showTitle === 'string') this.operatorShowTitle = state.showTitle;
 
     let shownItemIndex = this.localItemIndex;
-    if (typeof state.activeItemIndex === 'number' && this.syncMode !== 'midi') {
-      const targetItem = this.show.order[state.activeItemIndex];
+    // Followed in every mode but 'off' now — including MIDI, so a second device can
+    // correct the one holding the footswitch (MusicianPage.tsx onStateUpdate).
+    if (typeof incomingItemIndex === 'number') {
+      const targetItem = this.show.order[incomingItemIndex];
       if (targetItem && targetItem.type === 'song') {
-        this.localItemIndex = state.activeItemIndex;
-        shownItemIndex = state.activeItemIndex;
+        this.localItemIndex = incomingItemIndex;
+        shownItemIndex = incomingItemIndex;
       }
     }
 
     const shownItem = this.show.order[shownItemIndex];
     const matchesSong = typeof state.songNumber === 'number' && shownItem?.type === 'song' && state.songNumber === shownItem.songNumber;
 
-    const nextItemIndex = typeof state.activeItemIndex === 'number' ? state.activeItemIndex : this.operatorItemIndex;
+    const nextItemIndex = typeof incomingItemIndex === 'number' ? incomingItemIndex : this.operatorItemIndex;
     const nextBlockIndex = matchesSong && typeof state.activeBlockIndex === 'number' ? state.activeBlockIndex : this.operatorBlockIndex;
     if (nextItemIndex !== this.operatorItemIndex || nextBlockIndex !== this.operatorBlockIndex) {
       this.operatorItemIndex = nextItemIndex;
@@ -520,8 +617,16 @@ export class MusicianClient extends BaseClient {
   }
 
   /** broadcastMidiSync — the PARTIAL payload a musician puts on the wire. */
-  broadcastMidiSync(data) {
-    const tagged = { ...data, clientId: this.clientId };
+  broadcastMidiSync(data, opts) {
+    // Only real local navigation opens the authority window — MusicianPage.tsx.
+    if (opts?.local !== false) this.lastLocalNavAt = this.now();
+    const tagged = {
+      ...data,
+      clientId: this.clientId,
+      senderRole: 'musician',
+      senderId: this.deviceId,
+      showSig: this.showSig,
+    };
     this.broadcasts.push(tagged);
     this.broadcast('musician_sync', tagged);
   }

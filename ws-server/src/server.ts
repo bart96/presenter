@@ -92,6 +92,8 @@ interface AuthedClient {
   account: number;
   authTimer: ReturnType<typeof setTimeout> | null;
   info: ClientInfo;
+  /** This socket's relay id, handed back in `auth_ok` so peers can address it in `to`. */
+  id: string;
 }
 
 const KNOWN_ROLES = new Set(['operator', 'musician', 'remote', 'viewer', 'monitor']);
@@ -112,6 +114,21 @@ function parseClientInfo(raw: unknown): ClientInfo {
 }
 
 const clients = new Set<AuthedClient>();
+
+/**
+ * Read a frame's optional `to` field: one client id, or several.
+ *
+ * Returns null when the field is absent or unusable, which means "everyone" — the
+ * behaviour every message had before addressing existed. An *empty* list is not the same
+ * thing and is honoured as written: a sender that addressed nobody meant nobody, and
+ * silently promoting that to a broadcast is how a targeted meter feed ends up on every
+ * screen in the building.
+ */
+function normaliseTo(raw: unknown): Set<string> | null {
+  if (typeof raw === 'string') return new Set([raw]);
+  if (Array.isArray(raw)) return new Set(raw.filter((id): id is string => typeof id === 'string'));
+  return null;
+}
 
 /** Relay-assigned socket id, so every trace row can be grouped back to its connection. */
 let socketSeq = 0;
@@ -560,6 +577,7 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     account: -1, // not yet authenticated
     authTimer: null,
     info: { role: 'unknown' },
+    id: clientId,
   };
 
   // Give the client 10 seconds to authenticate (token validation involves an HTTP call)
@@ -662,6 +680,10 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
             count: accountPeers.length + watchers.length,
             others: Math.max(0, accountPeers.length + watchers.length - 1),
             peers: [...accountPeers.filter((p) => p !== client).map((p) => p.info), ...watchers],
+            // This socket's own id, so a client can ask a peer to answer it directly
+            // rather than broadcasting the reply to the whole account. See the `to`
+            // handling in the fan-out below.
+            clientId,
             // Lets a client run the same expiry countdown locally, so it still clears its
             // display if this relay restarts (or never sends sync_expired) while it watches.
             syncTtlSeconds: SYNC_TTL_SECONDS,
@@ -799,10 +821,25 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
       /* ignore */
     }
 
+    // ── Addressed delivery ──────────────────────────────────────────────────
+    // A frame may name its recipients in `to` (one client id, or several). Without it
+    // everything still goes to every peer of the account, exactly as before — this is
+    // additive, and a client that never sets `to` cannot tell the difference.
+    //
+    // It exists for the audio mixer, which forwards the desk's meters at 10 Hz. Fanning
+    // that out to the whole account would push audio levels at the presentation windows
+    // and the text viewers, which have no use for them and pay for every byte.
+    //
+    // Senders address their replies whether or not the relay in front of them understands
+    // this, and clients drop frames not meant for them, so an older relay stays correct —
+    // just chattier.
+    const addressed = normaliseTo(msg.to);
+
     for (const peer of clients) {
       if (peer === client) continue;
       if (peer.account !== client.account) continue;
       if (peer.ws.readyState !== WebSocket.OPEN) continue;
+      if (addressed && !addressed.has(peer.id)) continue;
       peer.ws.send(payload);
       relayed++;
     }

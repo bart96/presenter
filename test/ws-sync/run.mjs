@@ -485,8 +485,8 @@ scenario(
 
 // 12 ────────────────────────────────────────────────────────────────────────
 scenario(
-  'Reconnecting operator does not follow its own stale cache',
-  'The relay replays the cached selection on auth; an operator adopting it would jump backwards.',
+  'Reconnecting operator asks the MIDI master instead of publishing its own position',
+  'The relay replays a cached selection on auth, and a restarted operator starts at item 0 — either would drag the band backwards.',
   async ({ url, account }) => {
     const show = makeShow();
     const operator = await new OperatorClient({ url, account, show, midiTrackingMaster: 'midi' }).connect();
@@ -504,18 +504,24 @@ scenario(
 
     const replayed = operator2.received.filter((m) => m.action === 'musician_sync' && m.replay);
     report.note(`the relay replayed ${replayed.length} cached selection(s) to the reconnecting operator`);
-    report.equal('the fresh operator ignored the replay', operator2.followed.length, 0);
-    report.equal('it starts from its own state, not the cache', operator2.state.activeItemIndex, 0);
 
-    // A restarted operator broadcasts its own position, and the MIDI musician mirrors it —
-    // by design, since the musician's block indicator is meant to show what is on the
-    // screen. So the pointer is pulled back to 0 and the next MIDI step continues from
-    // there. The two sides converge, which is what matters; they do not ping-pong.
-    report.equal("the musician adopted the fresh operator's position", musician.operatorBlockIndex, 0);
+    // The replay is still ignored outright — every position this operator adopted came from
+    // the musician answering its `get_state`, never from the relay's cache.
+    report.check(
+      'the fresh operator ignored the replay',
+      operator2.followed.every((f) => f.from === musician.clientId),
+      `adopted from: ${JSON.stringify(operator2.followed.map((f) => f.from))}`,
+    );
+
+    // It asks the MIDI master where the show is instead of publishing its own start-up
+    // position. Before, it announced block 0 and the musician mirrored that — the band's
+    // pointer was dragged back and the next step continued from there. Now the master wins.
+    report.equal('it adopted the MIDI master position', operator2.state.activeBlockIndex, 2);
+    report.equal('the musician kept its own position', musician.operatorBlockIndex, 2);
 
     musician.midiNextBlock();
     await quiesce([operator2, musician]);
-    report.equal('and follows live musician syncs again', operator2.state.activeBlockIndex, 1);
+    report.equal('and follows live musician syncs again', operator2.state.activeBlockIndex, 3);
     report.equal('musician and operator agree', musician.operatorBlockIndex, operator2.state.activeBlockIndex);
 
     await Promise.all([operator2, musician].map((c) => c.close()));
@@ -592,6 +598,162 @@ scenario(
     report.equal('a viewer connecting after expiry gets no stale replay', afterExpiry.renders.length, 0);
 
     await Promise.all([operator, viewer, afterExpiry].map((c) => c.close()));
+  },
+);
+
+// 15 ────────────────────────────────────────────────────────────────────────
+scenario(
+  'A passive second operator cannot drag the show back',
+  'Reproduces the 30.08. service: background app instances answered on the show\u2019s behalf and the projection snapped to their item.',
+  async ({ url, account }) => {
+    const show = makeShow();
+    const live = await new OperatorClient({ url, account, show, midiTrackingMaster: 'midi', name: 'operator-live' }).connect();
+    // A second copy of the app, left open on another device. It never opened a presentation
+    // window, so `isLiveOperator()` is false — and it is stuck on the show's first item.
+    const ghost = await new OperatorClient({
+      url,
+      account,
+      show,
+      midiTrackingMaster: 'operator',
+      isLive: false,
+      name: 'operator-ghost',
+    }).connect();
+    const musician = await new MusicianClient({ url, account, show, syncMode: 'midi', musicianName: 'Anna' }).connect();
+    await quiesce([live, ghost, musician]);
+
+    musician.midiNextItem();
+    musician.midiNextItem();
+    await quiesce([live, ghost, musician]);
+    report.equal('the live operator followed the musician to item 2', live.state.activeItemIndex, 2);
+
+    // The footswitch pause. In the log this is where both background instances published
+    // item 0 and the live operator followed them.
+    const ghostBroadcastsBefore = ghost.broadcasts.length;
+    musician.midiToggleBlack();
+    await quiesce([live, ghost, musician]);
+
+    report.equal('the passive operator published nothing', ghost.broadcasts.length, ghostBroadcastsBefore);
+    report.equal('the passive operator did not act on the command', ghost.state.isBlack, false);
+    report.equal('the live operator went black', live.state.isBlack, true);
+    report.equal('and stayed on item 2', live.state.activeItemIndex, 2);
+    report.equal('the musician stayed on item 2', musician.localItemIndex, 2);
+
+    // A musician (re)connecting is the other trigger: every operator used to answer.
+    const latecomer = await new MusicianClient({ url, account, show, syncMode: 'operator', musicianName: 'Ben' }).connect();
+    await quiesce([live, ghost, musician, latecomer]);
+    report.equal('a late joiner lands on the live position, not the passive one', latecomer.localItemIndex, 2);
+    report.equal('the live operator is still on item 2', live.state.activeItemIndex, 2);
+
+    await Promise.all([live, ghost, musician, latecomer].map((c) => c.close()));
+  },
+);
+
+// 16 ────────────────────────────────────────────────────────────────────────
+scenario(
+  'An edited show does not silently shift everyone by one',
+  'Indices only mean the same item while both sides hold the same order; the song number rescues the ones that can be rescued.',
+  async ({ url, account }) => {
+    const show = makeShow();
+    // The operator inserts an item at the top mid-service — every index below shifts.
+    const editedShow = {
+      ...show,
+      order: [{ type: 'media', mediaSubType: 'image', label: 'Begrüßung' }, ...show.order],
+    };
+
+    const operator = await new OperatorClient({ url, account, show: editedShow, midiTrackingMaster: 'midi' }).connect();
+    // This device never reloaded, so it is still holding the pre-edit order.
+    const musician = await new MusicianClient({ url, account, show, syncMode: 'midi', musicianName: 'Anna' }).connect();
+    await quiesce([operator, musician]);
+
+    // Song 202 is item 2 for the musician and item 3 for the operator.
+    musician.midiNextItem();
+    musician.midiNextItem();
+    await quiesce([operator, musician]);
+
+    report.equal('the musician is on song 202', musician.activeSongNumber, 202);
+    report.equal(
+      'the operator landed on song 202 too, at ITS index',
+      operator.activeItem?.songNumber,
+      202,
+      `operator item index ${operator.state.activeItemIndex}`,
+    );
+    report.equal('which is one further down its order', operator.state.activeItemIndex, 3);
+
+    // Now a position that cannot be rescued: a media item, which carries no song number.
+    const rejectedBefore = operator.rejectedStale.length;
+    musician.broadcastMidiSync({ activeItemIndex: 1, activeBlockIndex: 0, activeLineIndex: 0, songNumber: undefined });
+    await quiesce([operator, musician]);
+
+    report.check(
+      'an unplaceable index is refused, not applied',
+      operator.rejectedStale.length > rejectedBefore,
+      `rejected ${rejectedBefore} → ${operator.rejectedStale.length}`,
+    );
+    report.equal('so the projection did not jump', operator.activeItem?.songNumber, 202);
+
+    await Promise.all([operator, musician].map((c) => c.close()));
+  },
+);
+
+// 17 ────────────────────────────────────────────────────────────────────────
+scenario(
+  'A second device can correct the one holding the footswitch',
+  'MIDI mode used to ignore every incoming index, so fixing the position on a phone left the tablet behind.',
+  async ({ url, account }) => {
+    const show = makeShow();
+    const operator = await new OperatorClient({ url, account, show, midiTrackingMaster: 'midi' }).connect();
+    const clock = { t: 100_000 };
+    const now = () => clock.t;
+    const tablet = await new MusicianClient({ url, account, show, syncMode: 'midi', musicianName: 'Anna', now }).connect();
+    const phone = await new MusicianClient({ url, account, show, syncMode: 'midi', musicianName: 'Ben', now }).connect();
+    await quiesce([operator, tablet, phone]);
+
+    // The tablet (footswitch) is on the wrong song.
+    tablet.midiNextItem();
+    await quiesce([operator, tablet, phone]);
+    report.equal('the tablet moved to item 1', tablet.localItemIndex, 1);
+
+    // Past the authority window, so the correction below is not mistaken for an echo.
+    clock.t += 5_000;
+
+    // Anna fixes it from the phone.
+    phone.midiNextItem();
+    phone.midiNextItem();
+    await quiesce([operator, tablet, phone]);
+
+    report.equal('the phone is on item 2', phone.localItemIndex, 2);
+    report.equal('the tablet followed the correction', tablet.localItemIndex, 2);
+    report.equal('and so did the operator', operator.state.activeItemIndex, 2);
+
+    // The next footswitch press therefore continues from the corrected position.
+    clock.t += 5_000;
+    tablet.midiNextBlock();
+    await quiesce([operator, tablet, phone]);
+    report.equal('the footswitch steps on from there', operator.state.activeItemIndex, 2);
+
+    await Promise.all([operator, tablet, phone].map((c) => c.close()));
+  },
+);
+
+// 18 ────────────────────────────────────────────────────────────────────────
+scenario(
+  'Our own echo never pulls a fast footswitch backwards',
+  'The operator mirrors our position back; the echo of press N must not undo press N+1.',
+  async ({ url, account }) => {
+    const show = makeShow();
+    const operator = await new OperatorClient({ url, account, show, midiTrackingMaster: 'midi' }).connect();
+    const musician = await new MusicianClient({ url, account, show, syncMode: 'midi', musicianName: 'Anna' }).connect();
+    await quiesce([operator, musician]);
+
+    musician.midiNextBlock();
+    musician.midiNextBlock();
+    musician.midiNextBlock();
+    await quiesce([operator, musician]);
+
+    report.equal('the musician is on block 3', musician.operatorBlockIndex, 3);
+    report.equal('and the operator agrees', operator.state.activeBlockIndex, 3);
+
+    await Promise.all([operator, musician].map((c) => c.close()));
   },
 );
 

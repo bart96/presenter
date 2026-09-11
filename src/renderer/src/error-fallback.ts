@@ -25,8 +25,10 @@ function formatUA(): string {
   }
 }
 
-/** Read the configured backendUrl from localStorage (mirrors settingsSlice). */
+/** Read the configured backendUrl from localStorage (mirrors getBackendBaseUrl). */
 function getBackendUrl(): string {
+  // Desktop app only — the browser build always talks to the origin it was served from.
+  if (!(window as { api?: unknown }).api) return '';
   try {
     const raw = localStorage.getItem('presenter_settings');
     if (raw) {

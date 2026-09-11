@@ -3,7 +3,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 
 import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { mountRoot } from './mountRoot';
 import App from './App';
 import { CssBaseline } from '@mui/material';
 import { Provider } from 'react-redux';
@@ -14,7 +14,7 @@ import { installClientErrorLog } from '@/utils/clientErrorLog';
 // describe afterwards, and it is the only kind React's error boundary cannot see.
 installClientErrorLog();
 
-createRoot(document.getElementById('root')!).render(
+mountRoot(
   <StrictMode>
     <Provider store={store}>
       <CssBaseline />

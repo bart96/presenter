@@ -15,6 +15,7 @@ import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { useWsCompanionCommands } from '@/hooks/useWsCompanionCommands';
 import { useBroadcastCompanionState } from '@/hooks/useBroadcastCompanionState';
 import PresentationSyncHost from '@/components/layout/PresentationSyncHost';
+import StageEngineHost from '@/components/layout/StageEngineHost';
 import { useMetrics } from '@/hooks/useMetrics';
 import { useI18nContext } from '@/i18n/i18n-react';
 import { useShowUpdatePoller } from '@/hooks/useShowUpdatePoller';
@@ -49,6 +50,30 @@ export const MainPage = () => {
     dismiss: dismissShowUpdate,
     reloadFailed: showReloadFailed,
   } = useShowUpdatePoller({ autoReload: followsRemote });
+
+  /**
+   * A connected device sent a position we could not place, because it is holding a
+   * different version of the show (`usePresentationSync` raises this rather than jumping
+   * to a wrong item). Refusing silently would just look like a dead footswitch, so either
+   * go and fetch the new version — we already auto-reload while following remote commands —
+   * or tell the operator that somebody has to reload.
+   *
+   * This also closes the up-to-30s gap after an edit: the poller would find the change on
+   * its own eventually, but the musicians are pressing buttons *now*.
+   */
+  const [syncMismatch, setSyncMismatch] = useState<{ songTitle?: string } | null>(null);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { songTitle?: string } | undefined;
+      if (followsRemote) {
+        void reloadShow();
+        return;
+      }
+      setSyncMismatch({ songTitle: detail?.songTitle });
+    };
+    window.addEventListener('presenter:sync-show-mismatch', handler);
+    return () => window.removeEventListener('presenter:sync-show-mismatch', handler);
+  }, [followsRemote, reloadShow]);
 
   // Gate all authenticated queries on confirmed session status.
   // MainPage hooks run immediately on mount — before <RequireAuth> has a chance
@@ -129,6 +154,7 @@ export const MainPage = () => {
     <RequireAuth>
       <Shows open={isShowSelectorOpen} onShowSelected={handleShowSelected} />
       <PresentationSyncHost />
+      <StageEngineHost />
       {/* Show update notification */}
       <Snackbar open={showUpdateAvailable} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
         <Alert
@@ -157,6 +183,29 @@ export const MainPage = () => {
           }
         >
           {LL.SHOWS.UPDATE_FETCH_FAILED()}
+        </Alert>
+      </Snackbar>
+      {/* A connected device is on another version of the show, so its indices were refused. */}
+      <Snackbar open={!!syncMismatch} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+        <Alert
+          severity="warning"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                setSyncMismatch(null);
+                void reloadShow();
+              }}
+            >
+              {LL.REMOTE.SYNC_RELOAD()}
+            </Button>
+          }
+          onClose={() => setSyncMismatch(null)}
+        >
+          {syncMismatch?.songTitle
+            ? LL.REMOTE.SYNC_STALE_OPERATOR({ song: syncMismatch.songTitle })
+            : LL.REMOTE.SYNC_STALE_OPERATOR_NO_SONG()}
         </Alert>
       </Snackbar>
       {!isShowSelectorOpen && (

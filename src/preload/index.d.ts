@@ -37,8 +37,15 @@ export interface FrontendAPI {
   // ── Presentation window management ──
   createPresentationWindow: (config: WindowConfig) => Promise<string>;
   closePresentationWindow: (id: string) => Promise<void>;
+  // These three have been exposed by the preload since presentation windows existed but were
+  // never declared, so every call site reached them through an `any` cast.
+  focusPresentationWindow: (id: string) => Promise<void>;
+  hidePresentationWindow: (id: string) => Promise<void>;
+  showPresentationWindow: (id: string) => Promise<void>;
   updateWindowConfig: (id: string, partial: Partial<WindowConfig>) => Promise<{ applied: string[]; requiresReload: string[] }>;
   updatePresentationContent: (id: string, content: PresentationContentIPC) => void;
+  /** Stage-monitor overlay for one window; its own channel, see presentationBridge. */
+  updateStageOverlay: (id: string, payload: unknown) => void;
   broadcastPresentationContent: (content: PresentationContentIPC) => void;
   listScreens: () => Promise<ScreenInfo[]>;
   getWindowStates: () => Promise<WindowState[]>;
@@ -67,6 +74,8 @@ export interface FrontendAPI {
   exportSettings: () => Promise<string | null>;
   importSettings: () => Promise<SettingsDiff | null>;
   applyImportedSettings: (diff: SettingsDiff) => Promise<void>;
+  /** Commit pending localStorage writes to disk now, instead of whenever Chromium gets to it. */
+  flushStorage: () => void;
 
   // ── WebSocket network scan ──
   scanWsHosts: (url: string) => Promise<string[]>;
@@ -134,6 +143,8 @@ export interface VideoStatus {
 export interface PresentationAPI {
   onContentUpdate: (callback: (data: unknown) => void) => void;
   onCommand: (callback: (data: unknown) => void) => void;
+  /** Stage-overlay updates, on their own channel so cues and content never disturb each other. */
+  onStageUpdate?: (callback: (data: unknown) => void) => void;
   /** Tells main this window's React app is mounted — main replays the last content on it. */
   signalReady?: () => void;
   removeAllListeners: () => void;

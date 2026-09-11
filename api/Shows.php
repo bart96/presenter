@@ -43,6 +43,8 @@ class Shows extends RestController
         $stmt->fetchAll($rows);
         $stmt->close();
 
+        $bandsByTitle = $this->fetchBandIds($account, array_column($rows, 'title'));
+
         foreach ($rows as $row) {
             $decoded = json_decode($row['order'], true);
             if ($decoded === null && $row['order'] !== null && $row['order'] !== 'null') {
@@ -57,11 +59,72 @@ class Shows extends RestController
                 'date' => $row['date'],
                 'styleId' => $row['style_id'] ? (int)$row['style_id'] : null,
                 'eventId' => $row['event_id'] !== null ? (int)$row['event_id'] : null,
-                'eventName' => $row['event_name'] ?? null
+                'eventName' => $row['event_name'] ?? null,
+                'bandIds' => $bandsByTitle[$row['title']] ?? []
             ];
         }
 
         $res->success($result);
+    }
+
+    /**
+     * Band assignments for the given show titles, as title → [bandId, …].
+     *
+     * One query for the whole page rather than one per show: a show carries at most a
+     * handful of bands, and the list view needs them all to draw its chips.
+     */
+    private function fetchBandIds(int $account, array $titles): array
+    {
+        $titles = array_values(array_unique(array_filter($titles, 'is_string')));
+        if (count($titles) === 0) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($titles), '?'));
+
+        // A deployment that has the new code but has not run migration 23 yet has no
+        // `show_bands` table. Bands are decoration on this endpoint — losing the whole show
+        // list over them would be a far worse failure than showing no chips.
+        try {
+            $stmt = self::prepare("
+					SELECT sb.`show_title`, sb.`band_id`
+					FROM `show_bands` sb
+					INNER JOIN `bands` b ON b.`id` = sb.`band_id`
+					WHERE sb.`account` = ? AND sb.`show_title` IN ({$placeholders})
+					ORDER BY b.`sort_order`, b.`name`
+				");
+            $stmt->bind_param('i' . str_repeat('s', count($titles)), $account, ...$titles)->execute()->fetchAll($rows)->close();
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $byTitle = [];
+        foreach ($rows as $row) {
+            $byTitle[$row['show_title']][] = (int)$row['band_id'];
+        }
+
+        return $byTitle;
+    }
+
+    /**
+     * Replace the show's band assignments with the given ids.
+     *
+     * Ids the account does not own are dropped rather than rejected: the caller is saving a
+     * show, and a band that was deleted elsewhere must not cost them the save.
+     */
+    private function writeBandIds(int $account, string $title, array $bandIds): void
+    {
+        $stmt = self::prepare('DELETE FROM `show_bands` WHERE `account` = ? AND `show_title` = ?');
+        $stmt->bind_param('is', $account, $title)->execute()->close();
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $bandIds), fn ($id) => $id > 0)));
+        foreach ($ids as $bandId) {
+            $stmt = self::prepare('
+					INSERT IGNORE INTO `show_bands` (`account`, `show_title`, `band_id`)
+					SELECT ?, ?, `id` FROM `bands` WHERE `id` = ? AND `account` = ?
+				');
+            $stmt->bind_param('isii', $account, $title, $bandId, $account)->execute()->close();
+        }
     }
 
     protected function post(Request &$req, Response &$res): never
@@ -117,6 +180,12 @@ class Shows extends RestController
 			");
 
         $stmt->bind_param('isssiis', $account, $title, $orderValue, $groupsValue, $styleId, $eventId, $eventName)->execute()->close();
+
+        // Same rule as the event link: only rewrite the bands when the caller actually sent
+        // them, so an order-only auto-save cannot strip a show of the bands playing it.
+        if ($req->params->provided('bandIds')) {
+            $this->writeBandIds($account, $title, $req->params->getAsArray('bandIds', []));
+        }
 
         // If the show is linked to a ChurchTools event, reconcile that event's agenda with the
         // show's songs on EVERY save — so add/remove/reorder all stay in sync, not just reassign.

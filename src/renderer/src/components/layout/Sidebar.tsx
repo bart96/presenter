@@ -34,6 +34,7 @@ import {
   Palette as PaletteIcon,
   AccountCircle as AccountCircleIcon,
   Logout as LogoutIcon,
+  RestartAlt as ResetIcon,
   PictureAsPdf as PdfIcon,
   AdminPanelSettings as AdminIcon,
   MoreVert as MoreVertIcon,
@@ -111,9 +112,10 @@ import { StyleEditor, StyleGalleryThumb } from '@/components/style/StyleEditor';
 import { WindowManager } from '@/components/layout/WindowManager';
 import { SetListManager } from '@/components/setlist/SetListManager';
 import { MUSICAL_KEYS, parseOrderKey } from '@/utils/orderKeyUtils';
-import { useGetSettings, useUpdateSetting } from '@/store/settingsSlice';
+import { useGetSettings } from '@/store/settingsSlice';
 import { useGetWindows } from '@/store/windowSlice';
-import { oidcLogoutUrl } from '@/utils';
+import { useLogout } from '@/hooks/useLogout';
+import { LogoutResetDialog } from '@/components/layout/LogoutResetDialog';
 import { DEFAULT_SONG_ITEM_COLOR, DEFAULT_MEDIA_ITEM_COLOR, DEFAULT_BIBLE_ITEM_COLOR } from '@/theme';
 
 export interface SidebarHandle {
@@ -129,7 +131,6 @@ const Sidebar = forwardRef<SidebarHandle>((_, ref) => {
   const navigate = useNavigate();
 
   const { songClick } = useGetSettings();
-  const updateSetting = useUpdateSetting();
   const { currentShow, isDirty } = useGetShow();
 
   const dispatch = useAppDispatch();
@@ -247,15 +248,12 @@ const Sidebar = forwardRef<SidebarHandle>((_, ref) => {
 
   const windowNames = (savedWindowConfigs || []).map((c) => (c?.name || '').trim()).filter((n) => n.length > 0);
 
+  const logout = useLogout();
+  const [logoutResetOpen, setLogoutResetOpen] = useState(false);
+
   const handleLogout = () => {
     setAccountMenuAnchor(null);
-    // Clear last-selected account so the login page does not default back
-    // to the same account (especially important when logging out of admin).
-    updateSetting('lastSelectedAccount', '');
-    // Hand off to the backend's OIDC logout, which destroys the PHP session AND ends the
-    // provider session before returning to the login page. Calling DELETE /rest/Session
-    // first would destroy the session that still holds the id_token needed for that.
-    window.location.assign(oidcLogoutUrl());
+    logout();
   };
 
   const handleSaveShow = async () => {
@@ -401,6 +399,9 @@ const Sidebar = forwardRef<SidebarHandle>((_, ref) => {
             styleId: override ? (currentShow?.styleId ?? null) : (show.styleId ?? null),
             eventId: (override ? currentShow?.eventId : show.eventId) ?? null,
             eventName: (override ? currentShow?.eventName : show.eventName) ?? null,
+            // Sent on creation so a show made with bands keeps them; the later auto-saves
+            // omit the field entirely, which is what preserves them.
+            bandIds: (override ? currentShow?.bandIds : show.bandIds) ?? [],
           }).unwrap();
         } catch (error) {
           console.error('Failed to create new show:', error);
@@ -1148,7 +1149,19 @@ const Sidebar = forwardRef<SidebarHandle>((_, ref) => {
                 </ListItemIcon>
                 <ListItemText>{LL.AUTH.LOGOUT()}</ListItemText>
               </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setAccountMenuAnchor(null);
+                  setLogoutResetOpen(true);
+                }}
+              >
+                <ListItemIcon>
+                  <ResetIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>{LL.AUTH.LOGOUT_RESET.MENU()}</ListItemText>
+              </MenuItem>
             </Menu>
+            <LogoutResetDialog open={logoutResetOpen} onClose={() => setLogoutResetOpen(false)} />
 
             {/* Settings */}
             <Tooltip title={LL.SETTINGS.SETTINGS()}>

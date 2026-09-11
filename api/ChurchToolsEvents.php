@@ -122,8 +122,8 @@ class ChurchToolsEvents extends RestController
         $account      = $_SESSION['account'] ?? 0;
         $placeholders = $songNumbers
             |> count(...)
-            |> (fn($x) => array_fill(0, $x, '?'))
-            |> (fn($x) => implode(',', $x));
+            |> (fn ($x) => array_fill(0, $x, '?'))
+            |> (fn ($x) => implode(',', $x));
         $types        = 'i' . str_repeat('i', count($songNumbers));
         $stmt = self::prepare("SELECT `songnumber`, `title`, `authors`, `copyright`, `ccli_number` FROM `songs` WHERE `account` = ? AND `songnumber` IN ({$placeholders})");
         $stmt->bind_param($types, $account, ...$songNumbers)->execute()->fetchAll($rows)->close();

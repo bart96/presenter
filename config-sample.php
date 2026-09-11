@@ -35,7 +35,9 @@ const CUSTOM_NUMBER_SYNC = false;
 
 // OIDC Configuration
 const OIDC = [
-    'discovery_url'  => 'https://idp/.well-known/openid-configuration',
+    // Pin to the exact issuer in the discovery document (not its module.php path).
+    'issuer' => 'https://idp.efsh.de',
+    'discovery_url'  => 'https://idp.efsh.de/.well-known/openid-configuration',
     'client_id'      => 'client_id',
     'client_secret'  => 'client_secret',
     'admin_group'    => 'admin',

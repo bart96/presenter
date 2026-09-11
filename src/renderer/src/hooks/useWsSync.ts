@@ -6,6 +6,7 @@
  * and fires navigation callbacks.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { SyncOrigin } from '@/utils/syncProtocol';
 
 export type WsSyncStatus = 'disconnected' | 'connecting' | 'connected' | 'error' | 'dropped_by_operator';
 
@@ -25,7 +26,7 @@ export interface WsClientInfo {
   name?: string;
 }
 
-export interface WsSyncState {
+export interface WsSyncState extends SyncOrigin {
   /**
    * Identifies the client that produced this state. Musician pages tag their own
    * broadcasts with it so they can drop the relay's echo — a musician in MIDI mode
@@ -57,8 +58,22 @@ interface UseWsSyncOptions {
   account: number | null;
   enabled: boolean;
   onStateUpdate?: (state: WsSyncState) => void;
+  /**
+   * A peer asked for the current position. Only the client that is actually driving
+   * navigation should answer — see `MusicianPage`, where the MIDI master does.
+   */
+  onGetState?: () => void;
   /** Who this client is — relayed to the operator for the connected-clients breakdown. */
   clientInfo?: WsClientInfo;
+  /**
+   * Frames this hook has no opinion about, handed on verbatim.
+   *
+   * The audio mixer rides this socket rather than opening a second one: the relay counts
+   * every connection as a peer, and a musician showing up twice in the operator's client
+   * list because they opened the mixer would be its own bug report. `relayClientId` below
+   * is the other half — it is how the operator knows who to answer.
+   */
+  onRelayMessage?: (msg: Record<string, unknown>) => void;
   /**
    * Ask the operator to re-broadcast its state on connect (default). Turn it off for a
    * client that is only present to be seen — it would make the operator broadcast for
@@ -69,10 +84,30 @@ interface UseWsSyncOptions {
 
 const RECONNECT_DELAY_MS = 3000;
 
-export const useWsSync = ({ url, account, enabled, onStateUpdate, clientInfo, requestState = true }: UseWsSyncOptions) => {
+export const useWsSync = ({
+  url,
+  account,
+  enabled,
+  onStateUpdate,
+  onGetState,
+  clientInfo,
+  requestState = true,
+  onRelayMessage,
+}: UseWsSyncOptions) => {
   const [status, setStatus] = useState<WsSyncStatus>('disconnected');
+  /**
+   * The id the relay gave this socket, once it has. Peers address replies to it.
+   *
+   * Empty on a relay that predates addressed delivery, which is why callers fall back to
+   * an id of their own rather than waiting for one — see `useMixerClient`.
+   */
+  const [relayClientId, setRelayClientId] = useState('');
   const onStateUpdateRef = useRef(onStateUpdate);
   onStateUpdateRef.current = onStateUpdate;
+  const onGetStateRef = useRef(onGetState);
+  onGetStateRef.current = onGetState;
+  const onRelayMessageRef = useRef(onRelayMessage);
+  onRelayMessageRef.current = onRelayMessage;
   const requestStateRef = useRef(requestState);
   requestStateRef.current = requestState;
   // Read inside the socket callbacks, so a descriptor change never re-opens the socket.
@@ -128,6 +163,7 @@ export const useWsSync = ({ url, account, enabled, onStateUpdate, clientInfo, re
           if (msg.type === 'auth_ok') {
             authedRef.current = true;
             setStatus('connected');
+            setRelayClientId(typeof msg.clientId === 'string' ? msg.clientId : '');
             // Request current state from the operator
             if (requestStateRef.current) {
               try {
@@ -138,11 +174,17 @@ export const useWsSync = ({ url, account, enabled, onStateUpdate, clientInfo, re
             }
             return;
           }
+          if (msg.action === 'get_state') {
+            onGetStateRef.current?.();
+            return;
+          }
           if (msg.action === 'musician_sync' && onStateUpdateRef.current) {
             // The relay marks its cached-state replay on the envelope, not the payload —
             // surface it to the handler so a navigation master can ignore stale caches.
             onStateUpdateRef.current({ ...(msg.data as WsSyncState), replay: !!msg.replay });
+            return;
           }
+          onRelayMessageRef.current?.(msg as Record<string, unknown>);
         } catch {
           // ignore malformed messages
         }
@@ -164,6 +206,7 @@ export const useWsSync = ({ url, account, enabled, onStateUpdate, clientInfo, re
           return;
         }
         setStatus('disconnected');
+        setRelayClientId('');
         reconnectTimer = setTimeout(() => {
           if (!stopped) connect();
         }, RECONNECT_DELAY_MS);
@@ -224,12 +267,14 @@ export const useWsSync = ({ url, account, enabled, onStateUpdate, clientInfo, re
    * Relay a message to the account's other peers over this same connection.
    * Returns false when the socket is not connected/authenticated yet.
    */
-  const broadcast = useCallback((action: string, data?: Record<string, unknown>): boolean => {
+  const broadcast = useCallback((action: string, data?: Record<string, unknown>, to?: string | string[]): boolean => {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN || !authedRef.current) return false;
-    ws.send(JSON.stringify({ type: 'broadcast', action, data }));
+    // `to` names the peers that should receive this. A relay that does not understand it
+    // simply broadcasts as before, so senders always set it and receivers always check it.
+    ws.send(JSON.stringify({ type: 'broadcast', action, data, ...(to === undefined ? {} : { to }) }));
     return true;
   }, []);
 
-  return { status, broadcast, reconnect };
+  return { status, broadcast, reconnect, relayClientId };
 };

@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Divider, FormControlLabel, IconButton, InputAdornment, Stack, Switch, TextField, Tooltip, Typography } from '@mui/material';
+import {
+  Alert,
+  Button,
+  Divider,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
+  Stack,
+  Switch,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { Key as KeyIcon, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useI18nContext } from '@/i18n/i18n-react';
 import { isElectronApp } from '@/utils';
@@ -149,4 +161,3 @@ export const CredentialsSection = () => {
     </Stack>
   );
 };
-

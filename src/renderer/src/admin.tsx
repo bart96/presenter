@@ -1,7 +1,7 @@
 import './assets/main.css';
 
 import { useEffect, useMemo, StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { mountRoot } from './mountRoot';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { Provider } from 'react-redux';
 import { store } from '@/store';
@@ -47,7 +47,7 @@ const AdminApp = () => {
   );
 };
 
-createRoot(document.getElementById('root')!).render(
+mountRoot(
   <StrictMode>
     <Provider store={store}>
       <CssBaseline />

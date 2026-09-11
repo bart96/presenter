@@ -15,6 +15,13 @@ Cors::handle();
 Cors::configureSession();
 
 session_start();
+header('Cache-Control: no-store');
+header('Referrer-Policy: no-referrer');
+if (isset($_GET['error'])) {
+    unset($_SESSION['oidc_state'], $_SESSION['oidc_transaction'], $_SESSION['redirect']);
+    header('Location: /unauthorized?error=oidc.authentication_failed');
+    exit;
+}
 // Repairs cookies issued under the older Origin-dependent SameSite rules, which could not
 // survive the cross-site return from the IdP. Must run after session_start().
 Cors::refreshSessionCookie();
@@ -24,14 +31,7 @@ if (isset($_GET['logout'])) {
     $providerId = $_SESSION['oidc_provider_id'] ?? null;
 
     // Where to land after the provider has ended its session. Kept inside our own site.
-    $postLogout = $_GET['redirect'] ?? (BASE_URL . 'login');
-    $postLogout = filter_var($postLogout, FILTER_SANITIZE_URL);
-    if (str_starts_with($postLogout, '/')) {
-        $postLogout = BASE_URL . ltrim($postLogout, '/');
-    }
-    if (!str_starts_with($postLogout, BASE_URL)) {
-        $postLogout = BASE_URL . 'login';
-    }
+    $postLogout = BASE_URL . 'login';
     // A post_logout_redirect_uri must match one of the URIs registered for the client
     // EXACTLY — OpenID providers compare the full string, query included. Anything we
     // append here (flags for the app, cache busters) therefore turns the logout into a
@@ -44,9 +44,18 @@ if (isset($_GET['logout'])) {
             . $postLogout . ' -> ' . $postLogoutBare . '); register the bare URI at the provider.');
         $postLogout = $postLogoutBare;
     }
+    // "Log out and reset" — from the profile menu, or the same URL opened by hand on a stuck
+    // device: `reset=cookies,storage`, either or both.
+    $resetRaw = $_GET['reset'] ?? '';
+    $reset = array_map('trim', explode(',', strtolower(is_string($resetRaw) ? $resetRaw : '')));
+    $resetCookies = in_array('cookies', $reset, true);
+    $resetStorage = in_array('storage', $reset, true);
+
     // Marks the return trip so the login page knows it is coming back from a logout and
-    // must offer the account picker instead of signing straight back in.
-    $logoutState = 'logged_out';
+    // must offer the account picker instead of signing straight back in. localStorage can
+    // only be wiped by the page itself, so that request rides along in the same value; the
+    // login page clears it before the app reads any of it (applyPendingReset.ts).
+    $logoutState = $resetStorage ? 'logged_out_reset' : 'logged_out';
     $localFallback = $postLogout . '?state=' . $logoutState;
 
     if (!$idToken) {
@@ -93,17 +102,21 @@ if (isset($_GET['logout'])) {
     }
     session_destroy();
 
+    if ($resetCookies) {
+        Cors::expireAllCookies();
+    }
+
     header('Location: ' . $logoutUrl);
     exit;
 }
 
 // If no authorization code or state, start login
-if (!isset($_GET['code']) || !isset($_GET['state'])) {
+if (!isset($_GET['code']) && !isset($_GET['state'])) {
     // Optional redirect target after successful login
-    $redirect = $_GET['redirect'] ?? BASE_URL;
+    $redirect = OidcProtocol::safeRedirect($_GET['redirect'] ?? null, BASE_URL);
     try {
         $state = bin2hex(random_bytes(16));
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         $state = bin2hex(openssl_random_pseudo_bytes(16));
     }
     $_SESSION['oidc_state'] = $state;
@@ -136,16 +149,22 @@ if (!isset($_GET['code']) || !isset($_GET['state'])) {
         $oidc = OidcClient::fromProvider($provider);
     }
 
-    $authUrl = $oidc->getAuthorizationUrl($state);
+    try { $authUrl = $oidc->getAuthorizationUrl($state); }
+    catch (Throwable $e) {
+        unset($_SESSION['oidc_transaction'], $_SESSION['oidc_state']);
+        Logging::error('OIDC authorization could not be started.');
+        header('Location: /unauthorized?error=oidc.authentication_failed');
+        exit;
+    }
 
     header('Location: ' . $authUrl);
     exit;
 }
 
-$state = $_GET['state'];
-$code = $_GET['code'];
+$state = $_GET['state'] ?? null;
+$code = $_GET['code'] ?? null;
 
-if (!isset($_SESSION['oidc_state']) || $state !== $_SESSION['oidc_state']) {
+if (!is_string($code) || !is_string($state) || !isset($_SESSION['oidc_state']) || !hash_equals($_SESSION['oidc_state'], $state)) {
     MetricsHelper::record('login_failed', null, ['method' => 'oidc', 'reason' => 'invalid_state']);
     header('Location: /unauthorized?error=oidc.invalid_state');
     exit;
@@ -174,8 +193,8 @@ try {
         exit;
     } else {
         // Re-fetch provider from DB using the stored provider_id
-        $providerRow = lookupProviderById($providerId);
-        if (!$providerRow) {
+        $providerRow = lookupDefaultProvider((int)$license);
+        if (!$providerRow || (int)$providerRow['id'] !== (int)$providerId) {
             MetricsHelper::record('login_failed', null, ['method' => 'oidc', 'reason' => 'provider_not_found']);
             header('Location: /unauthorized?error=oidc.provider_not_found');
             exit;
@@ -198,7 +217,7 @@ try {
     $sub = $userinfo['sub'];
     $email = $userinfo['email'] ?? null;
     $name = $userinfo['name'] ?? $userinfo['preferred_username'] ?? $sub;
-    $groups = $userinfo['groups'] ?? [];
+    $groups = OidcProtocol::groups($userinfo['groups'] ?? []);
 
     if ($isAdminLogin) {
         // ── Admin login ──────────────────────────────────────────────────
@@ -210,7 +229,7 @@ try {
                 $userGroups = count($groups) > 0 ? implode(', ', $groups) : '[none]';
                 Logging::warning('OIDC access denied for user ' . $sub . '. Required group: ' . OIDC['required_group'] . '. User groups: ' . $userGroups);
                 MetricsHelper::record('login_failed', null, ['method' => 'oidc', 'reason' => 'access_denied', 'sub' => $sub]);
-                header('Location: /unauthorized?error=oidc.access_denied&required_group=' . OIDC['required_group'] . '&user_groups=' . urlencode($userGroups) . '&sub=' . urlencode($sub));
+                header('Location: /unauthorized?error=oidc.access_denied');
                 exit;
             }
         }
@@ -228,7 +247,7 @@ try {
             $userGroups = count($groups) > 0 ? implode(', ', $groups) : '[none]';
             Logging::warning('Admin access denied for user ' . $sub . '. Required admin group: ' . OIDC['admin_group'] . '. User groups: ' . $userGroups);
             MetricsHelper::record('login_failed', null, ['method' => 'oidc', 'reason' => 'admin_access_denied', 'sub' => $sub]);
-            header('Location: /unauthorized?error=oidc.admin_access_denied&required_group=' . urlencode(OIDC['admin_group']) . '&user_groups=' . urlencode($userGroups) . '&sub=' . urlencode($sub));
+            header('Location: /unauthorized?error=oidc.admin_access_denied');
             exit;
         }
         // Admin login successful
@@ -244,7 +263,7 @@ try {
                 $userGroups = count($groups) > 0 ? implode(', ', $groups) : '[none]';
                 Logging::warning('OIDC access denied for user ' . $sub . ' on license ' . $license . '. Required group: ' . $requiredGroup . '. User groups: ' . $userGroups);
                 MetricsHelper::record('login_failed', $license, ['method' => 'oidc', 'reason' => 'access_denied', 'sub' => $sub]);
-                header('Location: /unauthorized?error=oidc.access_denied&required_group=' . urlencode($requiredGroup) . '&user_groups=' . urlencode($userGroups) . '&sub=' . urlencode($sub));
+                header('Location: /unauthorized?error=oidc.access_denied');
                 exit;
             }
         }
@@ -265,13 +284,16 @@ try {
         }
     }
 
+    session_regenerate_id(true);
+    $_SESSION['oidc_subject'] = $sub;
+    $_SESSION['oidc_session_expires'] = time() + 28800;
     $_SESSION['oidc_tokens'] = [
       'access_token' => $tokens['access_token'],
       'id_token' => $tokens['id_token'] ?? null,
       'refresh_token' => $tokens['refresh_token'] ?? null,
       'expires_at' => time() + ($tokens['expires_in'] ?? 3600),
     ];
-    $redirectUrl = $_SESSION['redirect'] ?? '/';
+    $redirectUrl = OidcProtocol::safeRedirect($_SESSION['redirect'] ?? null, BASE_URL);
     unset($_SESSION['redirect']);
     // Log the effective cookie parameters for iOS/session debugging
     $cookieParams = session_get_cookie_params();
@@ -284,11 +306,11 @@ try {
 
     header('Location: ' . $redirectUrl);
     exit;
-} catch (Exception $e) {
+} catch (Throwable $e) {
     Logging::error('OIDC Auth error: ' . $e->getMessage());
     MetricsHelper::record('login_failed', null, ['method' => 'oidc', 'reason' => 'exception', 'message' => $e->getMessage()]);
 
-    header('Location: /unauthorized?error=oidc.authentication_failed&details=' . urlencode($e->getMessage()));
+    header('Location: /unauthorized?error=oidc.authentication_failed');
     exit;
 }
 

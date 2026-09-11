@@ -132,6 +132,12 @@ export const registerIpcHandlers = (windowManager: PresentationWindowManager) =>
     windowManager.updatePresentationContent(id, content);
   });
 
+  // The stage overlay rides its own channel rather than the content payload, so a running
+  // countdown never re-serializes the current slide. See presentationBridge.broadcastStage.
+  ipcMain.on('update-stage-overlay', (_event, id: string, payload: unknown) => {
+    windowManager.sendStageOverlay(id, payload);
+  });
+
   // A presentation window's renderer signals its listeners are attached — replay
   // the content it may have missed during bootstrap (fixes black windows on start).
   ipcMain.on('presentation-ready', (event) => {
@@ -346,13 +352,20 @@ export const registerIpcHandlers = (windowManager: PresentationWindowManager) =>
     win.webContents.reload();
   });
 
+  // A renderer's localStorage writes sit in memory until Chromium commits them lazily, so the
+  // renderer asks for an immediate commit after saving — otherwise a crash or a Windows
+  // restart takes the last settings with it (see renderer store/persist.ts).
+  ipcMain.on('flush-storage', (event) => {
+    event.sender.session.flushStorageData();
+  });
+
   // ── System fonts ──
   ipcMain.handle('get-system-fonts', async () => {
     try {
       // Require font-list dynamically at runtime. Some bundlers may break
       // static imports for font-list's internal files, so load it lazily and
       // guard with try/catch.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const fontList = require('font-list');
       const fonts: string[] = await fontList.getFonts();
       // font-list returns names wrapped in quotes on some platforms; strip them

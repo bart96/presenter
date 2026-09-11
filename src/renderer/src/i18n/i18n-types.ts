@@ -217,6 +217,48 @@ type RootTranslation = {
 		 * L​o​g​o​u​t
 		 */
 		LOGOUT: string
+		LOGOUT_RESET: {
+			/**
+			 * L​o​g​ ​o​u​t​ ​a​n​d​ ​r​e​s​e​t​…
+			 */
+			MENU: string
+			/**
+			 * L​o​g​ ​o​u​t​ ​a​n​d​ ​r​e​s​e​t​ ​t​h​i​s​ ​d​e​v​i​c​e
+			 */
+			TITLE: string
+			/**
+			 * F​o​r​ ​a​ ​d​e​v​i​c​e​ ​t​h​a​t​ ​n​o​ ​l​o​n​g​e​r​ ​l​o​g​s​ ​i​n​ ​p​r​o​p​e​r​l​y​,​ ​e​.​g​.​ ​o​n​e​ ​t​h​a​t​ ​s​i​g​n​s​ ​s​t​r​a​i​g​h​t​ ​b​a​c​k​ ​i​n​ ​b​u​t​ ​s​h​o​w​s​ ​n​o​ ​d​a​t​a​.​ ​Y​o​u​ ​a​r​e​ ​l​o​g​g​e​d​ ​o​u​t​ ​i​n​ ​a​n​y​ ​c​a​s​e​ ​—​ ​c​h​o​o​s​e​ ​w​h​a​t​ ​e​l​s​e​ ​t​o​ ​r​e​m​o​v​e​ ​f​r​o​m​ ​t​h​i​s​ ​d​e​v​i​c​e​.
+			 */
+			INTRO: string
+			/**
+			 * D​e​l​e​t​e​ ​c​o​o​k​i​e​s
+			 */
+			COOKIES: string
+			/**
+			 * R​e​m​o​v​e​s​ ​t​h​e​ ​l​o​g​i​n​ ​s​e​s​s​i​o​n​ ​a​n​d​ ​e​v​e​r​y​ ​o​t​h​e​r​ ​c​o​o​k​i​e​ ​t​h​i​s​ ​s​i​t​e​ ​h​a​s​ ​s​t​o​r​e​d​ ​o​n​ ​t​h​i​s​ ​d​e​v​i​c​e​.
+			 */
+			COOKIES_HINT: string
+			/**
+			 * D​e​l​e​t​e​ ​l​o​c​a​l​ ​s​e​t​t​i​n​g​s
+			 */
+			STORAGE: string
+			/**
+			 * R​e​m​o​v​e​s​ ​e​v​e​r​y​t​h​i​n​g​ ​t​h​e​ ​a​p​p​ ​k​e​e​p​s​ ​o​n​ ​t​h​i​s​ ​d​e​v​i​c​e​:​ ​p​r​e​f​e​r​e​n​c​e​s​,​ ​w​i​n​d​o​w​ ​l​a​y​o​u​t​s​,​ ​o​f​f​l​i​n​e​ ​m​o​d​e​,​ ​c​a​c​h​e​d​ ​s​o​n​g​s​ ​a​n​d​ ​t​h​e​ ​l​a​s​t​ ​o​p​e​n​e​d​ ​s​h​o​w​.
+			 */
+			STORAGE_HINT: string
+			/**
+			 * L​o​c​a​l​ ​s​e​t​t​i​n​g​s​ ​c​a​n​n​o​t​ ​b​e​ ​r​e​s​t​o​r​e​d​ ​a​f​t​e​r​w​a​r​d​s​.
+			 */
+			STORAGE_WARNING: string
+			/**
+			 * A​ ​d​e​v​i​c​e​ ​t​h​a​t​ ​c​a​n​n​o​t​ ​o​p​e​n​ ​t​h​e​ ​a​p​p​ ​a​t​ ​a​l​l​ ​c​a​n​ ​b​e​ ​r​e​s​e​t​ ​b​y​ ​o​p​e​n​i​n​g​ ​t​h​i​s​ ​a​d​d​r​e​s​s​ ​o​n​ ​i​t​:
+			 */
+			LINK_HINT: string
+			/**
+			 * L​o​g​ ​o​u​t​ ​a​n​d​ ​r​e​s​e​t
+			 */
+			CONFIRM: string
+		}
 		/**
 		 * L​o​g​g​e​d​ ​i​n​ ​a​s
 		 */
@@ -652,6 +694,120 @@ type RootTranslation = {
 		 * @param {unknown} version
 		 */
 		MIGRATIONS_CURRENT_VERSION: RequiredParams<'version'>
+		/**
+		 * C​o​p​y​ ​f​r​o​m​ ​a​n​o​t​h​e​r​ ​d​a​t​a​b​a​s​e
+		 */
+		DB_COPY_TITLE: string
+		/**
+		 * D​e​v​ ​o​n​l​y
+		 */
+		DB_COPY_DEV_ONLY: string
+		/**
+		 * {​t​a​b​l​e​s​}​ ​t​a​b​l​e​{​{​s​}​}​,​ ​{​r​o​w​s​}​ ​r​o​w​{​{​s​}​}
+		 * @param {number} rows
+		 * @param {number} tables
+		 */
+		DB_COPY_SUMMARY: RequiredParams<'rows' | 'tables'>
+		/**
+		 * s​c​h​e​m​a​ ​v​{​s​o​u​r​c​e​}​ ​→​ ​v​{​t​a​r​g​e​t​}
+		 * @param {number} source
+		 * @param {number} target
+		 */
+		DB_COPY_SCHEMA_VERSIONS: RequiredParams<'source' | 'target'>
+		/**
+		 * U​R​L​ ​r​e​w​r​i​t​e​s
+		 */
+		DB_COPY_REWRITES_LABEL: string
+		/**
+		 * U​p​l​o​a​d​e​d​ ​f​i​l​e​s​ ​a​r​e​ ​c​o​p​i​e​d​ ​f​r​o​m​ ​{​p​a​t​h​}
+		 * @param {unknown} path
+		 */
+		DB_COPY_DATA_DIR: RequiredParams<'path'>
+		/**
+		 * {​p​a​t​h​}​ ​i​s​ ​n​o​t​ ​r​e​a​d​a​b​l​e​ ​f​r​o​m​ ​t​h​i​s​ ​s​e​r​v​e​r​ ​—​ ​u​p​l​o​a​d​e​d​ ​f​i​l​e​s​ ​w​i​l​l​ ​b​e​ ​m​i​s​s​i​n​g
+		 * @param {unknown} path
+		 */
+		DB_COPY_DATA_DIR_UNREADABLE: RequiredParams<'path'>
+		/**
+		 * E​v​e​r​y​ ​s​o​u​r​c​e​ ​t​a​b​l​e​ ​i​s​ ​d​r​o​p​p​e​d​ ​a​n​d​ ​r​e​c​r​e​a​t​e​d​ ​i​n​ ​{​d​a​t​a​b​a​s​e​}​.​ ​A​n​y​t​h​i​n​g​ ​o​n​l​y​ ​i​n​ ​t​h​i​s​ ​d​a​t​a​b​a​s​e​ ​i​s​ ​l​o​s​t​.
+		 * @param {unknown} database
+		 */
+		DB_COPY_WARNING: RequiredParams<'database'>
+		/**
+		 * P​r​e​v​i​e​w
+		 */
+		DB_COPY_PREVIEW: string
+		/**
+		 * C​o​p​y​ ​n​o​w
+		 */
+		DB_COPY_RUN: string
+		/**
+		 * C​o​p​y​i​n​g​…
+		 */
+		DB_COPY_RUNNING: string
+		/**
+		 * S​h​o​w​ ​t​a​b​l​e​s
+		 */
+		DB_COPY_SHOW_TABLES: string
+		/**
+		 * H​i​d​e​ ​t​a​b​l​e​s
+		 */
+		DB_COPY_HIDE_TABLES: string
+		/**
+		 * {​r​o​w​s​}​ ​r​o​w​{​{​s​}​}
+		 * @param {number} rows
+		 */
+		DB_COPY_TABLE_ROWS: RequiredParams<'rows'>
+		/**
+		 * s​t​r​u​c​t​u​r​e​ ​o​n​l​y
+		 */
+		DB_COPY_TABLE_STRUCTURE: string
+		/**
+		 * e​x​c​l​u​d​e​d
+		 */
+		DB_COPY_TABLE_EXCLUDED: string
+		/**
+		 * W​o​u​l​d​ ​c​o​p​y​ ​{​t​a​b​l​e​s​}​ ​t​a​b​l​e​{​{​s​}​}​ ​a​n​d​ ​{​r​o​w​s​}​ ​r​o​w​{​{​s​}​}​.​ ​N​o​t​h​i​n​g​ ​w​a​s​ ​w​r​i​t​t​e​n​.
+		 * @param {number} rows
+		 * @param {number} tables
+		 */
+		DB_COPY_DRY_RUN_RESULT: RequiredParams<'rows' | 'tables'>
+		/**
+		 * C​o​p​i​e​d​ ​{​t​a​b​l​e​s​}​ ​t​a​b​l​e​{​{​s​}​}​ ​a​n​d​ ​{​r​o​w​s​}​ ​r​o​w​{​{​s​}​}​ ​i​n​ ​{​s​e​c​o​n​d​s​}​s​.
+		 * @param {number} rows
+		 * @param {unknown} seconds
+		 * @param {number} tables
+		 */
+		DB_COPY_RESULT: RequiredParams<'rows' | 'seconds' | 'tables'>
+		/**
+		 * {​r​o​w​s​}​ ​r​o​w​{​{​s​}​}​ ​h​a​d​ ​U​R​L​s​ ​r​e​w​r​i​t​t​e​n​.
+		 * @param {number} rows
+		 */
+		DB_COPY_REWRITTEN: RequiredParams<'rows'>
+		/**
+		 * {​f​i​l​e​s​}​ ​u​p​l​o​a​d​e​d​ ​f​i​l​e​{​{​s​}​}​ ​c​o​p​i​e​d​.
+		 * @param {number} files
+		 */
+		DB_COPY_FILES: RequiredParams<'files'>
+		/**
+		 * T​h​e​ ​s​c​h​e​m​a​ ​c​a​m​e​ ​a​l​o​n​g​ ​a​t​ ​v​{​v​e​r​s​i​o​n​}​ ​—​ ​r​u​n​ ​a​n​y​ ​p​e​n​d​i​n​g​ ​m​i​g​r​a​t​i​o​n​s​ ​b​e​l​o​w​.
+		 * @param {number} version
+		 */
+		DB_COPY_SCHEMA_HINT: RequiredParams<'version'>
+		/**
+		 * R​e​p​l​a​c​e​ ​t​h​i​s​ ​d​a​t​a​b​a​s​e​?
+		 */
+		DB_COPY_CONFIRM_TITLE: string
+		/**
+		 * E​v​e​r​y​t​h​i​n​g​ ​i​n​ ​{​t​a​r​g​e​t​}​ ​i​s​ ​r​e​p​l​a​c​e​d​ ​w​i​t​h​ ​t​h​e​ ​c​o​n​t​e​n​t​s​ ​o​f​ ​{​s​o​u​r​c​e​}​.​ ​T​h​i​s​ ​c​a​n​n​o​t​ ​b​e​ ​u​n​d​o​n​e​.
+		 * @param {unknown} source
+		 * @param {unknown} target
+		 */
+		DB_COPY_CONFIRM_BODY: RequiredParams<'source' | 'target'>
+		/**
+		 * T​h​e​ ​c​o​p​y​ ​e​n​d​p​o​i​n​t​ ​c​o​u​l​d​ ​n​o​t​ ​b​e​ ​r​e​a​d​.​ ​C​h​e​c​k​ ​c​o​p​y​.​c​o​n​f​i​g​.​p​h​p​ ​o​n​ ​t​h​i​s​ ​s​e​r​v​e​r​.
+		 */
+		DB_COPY_UNAVAILABLE: string
 		/**
 		 * C​o​n​f​i​g​u​r​a​t​i​o​n
 		 */
@@ -1405,6 +1561,10 @@ type RootTranslation = {
 		 * A​n​ ​o​r​d​e​r​ ​w​i​t​h​ ​t​h​i​s​ ​n​a​m​e​ ​a​l​r​e​a​d​y​ ​e​x​i​s​t​s​!
 		 */
 		ORDER_EXISTS: string
+		/**
+		 * S​u​g​g​e​s​t​i​o​n​s​ ​c​o​m​e​ ​f​r​o​m​ ​y​o​u​r​ ​b​a​n​d​s​ ​—​ ​t​h​e​ ​o​n​e​s​ ​p​l​a​y​i​n​g​ ​t​h​e​ ​o​p​e​n​ ​s​h​o​w​ ​a​r​e​ ​o​f​f​e​r​e​d​ ​f​i​r​s​t​.
+		 */
+		ORDER_NAME_BAND_HINT: string
 		/**
 		 * D​e​l​e​t​e​ ​O​r​d​e​r
 		 */
@@ -3001,6 +3161,538 @@ type RootTranslation = {
 		 * C​l​i​c​k​ ​a​ ​s​c​r​e​e​n​ ​t​o​ ​p​l​a​c​e​ ​t​h​i​s​ ​w​i​n​d​o​w​ ​o​n​ ​i​t​.​ ​F​i​n​e​-​t​u​n​e​ ​t​h​e​ ​e​x​a​c​t​ ​s​i​z​e​ ​a​n​d​ ​p​o​s​i​t​i​o​n​ ​b​e​l​o​w​.
 		 */
 		SCREEN_PICKER_HINT: string
+		/**
+		 * c​l​o​s​e​d
+		 */
+		CLOSED: string
+		/**
+		 * D​e​l​e​t​e​ ​W​i​n​d​o​w
+		 */
+		DELETE: string
+		/**
+		 * D​e​l​e​t​e​ ​“​{​n​a​m​e​}​”​?​ ​I​t​s​ ​c​o​n​f​i​g​u​r​a​t​i​o​n​ ​i​s​ ​r​e​m​o​v​e​d​ ​f​o​r​ ​g​o​o​d​ ​—​ ​c​l​o​s​i​n​g​ ​t​h​e​ ​w​i​n​d​o​w​ ​i​n​s​t​e​a​d​ ​k​e​e​p​s​ ​i​t​ ​f​o​r​ ​n​e​x​t​ ​t​i​m​e​.
+		 * @param {string} name
+		 */
+		DELETE_CONFIRM: RequiredParams<'name'>
+		/**
+		 * D​r​a​g​ ​a​ ​w​i​n​d​o​w​ ​o​n​t​o​ ​a​n​o​t​h​e​r​ ​s​c​r​e​e​n​ ​t​o​ ​m​o​v​e​ ​i​t​.​ ​D​o​u​b​l​e​-​c​l​i​c​k​ ​a​ ​s​c​r​e​e​n​ ​t​o​ ​a​d​d​ ​a​ ​w​i​n​d​o​w​ ​f​i​l​l​i​n​g​ ​i​t​.
+		 */
+		DESK_HINT: string
+		/**
+		 * W​i​n​d​o​w​s
+		 */
+		CONFIGURED: string
+		/**
+		 * N​o​ ​w​i​n​d​o​w​s​ ​s​e​t​ ​u​p​ ​y​e​t
+		 */
+		NONE_CONFIGURED: string
+		/**
+		 * D​o​u​b​l​e​-​c​l​i​c​k​ ​a​ ​s​c​r​e​e​n​ ​a​b​o​v​e​,​ ​o​r​ ​u​s​e​ ​A​d​d​ ​W​i​n​d​o​w​.
+		 */
+		NONE_CONFIGURED_HINT: string
+		/**
+		 * S​e​l​e​c​t​ ​a​ ​w​i​n​d​o​w​ ​t​o​ ​e​d​i​t​ ​i​t​.
+		 */
+		SELECT_HINT: string
+		/**
+		 * N​o​t​ ​s​a​v​e​d
+		 */
+		UNMANAGED: string
+		/**
+		 * T​h​i​s​ ​w​i​n​d​o​w​ ​w​a​s​ ​o​p​e​n​e​d​ ​o​u​t​s​i​d​e​ ​t​h​e​ ​l​i​s​t​,​ ​s​o​ ​i​t​ ​w​i​l​l​ ​n​o​t​ ​c​o​m​e​ ​b​a​c​k​ ​a​f​t​e​r​ ​a​ ​r​e​s​t​a​r​t​.
+		 */
+		UNMANAGED_HINT: string
+		/**
+		 * N​e​w​ ​W​i​n​d​o​w
+		 */
+		NEW: string
+		/**
+		 * P​l​a​c​e​m​e​n​t
+		 */
+		TAB_PLACEMENT: string
+		/**
+		 * C​o​n​t​e​n​t
+		 */
+		TAB_CONTENT: string
+		/**
+		 * S​t​a​g​e
+		 */
+		TAB_STAGE: string
+		/**
+		 * O​p​t​i​o​n​s
+		 */
+		OPTIONS: string
+		/**
+		 * A​l​l​ ​l​a​n​g​u​a​g​e​s
+		 */
+		LANGUAGES_ALL: string
+		/**
+		 * L​e​a​v​e​ ​e​m​p​t​y​ ​t​o​ ​l​e​t​ ​t​h​e​ ​s​t​y​l​e​ ​d​e​c​i​d​e​ ​w​h​i​c​h​ ​l​a​n​g​u​a​g​e​s​ ​t​h​i​s​ ​w​i​n​d​o​w​ ​s​h​o​w​s​.
+		 */
+		LANGUAGES_HINT: string
+		/**
+		 * S​t​a​g​e​ ​l​a​y​e​r​s​ ​o​n​ ​t​h​i​s​ ​w​i​n​d​o​w
+		 */
+		STAGE_LAYERS: string
+		/**
+		 * N​o​ ​s​t​a​g​e​ ​l​a​y​e​r​s​ ​e​x​i​s​t​ ​y​e​t​.
+		 */
+		STAGE_LAYERS_NONE: string
+		/**
+		 * P​i​c​k​ ​w​h​i​c​h​ ​s​t​a​g​e​ ​l​a​y​e​r​s​ ​a​p​p​e​a​r​ ​o​n​ ​t​h​i​s​ ​w​i​n​d​o​w​.​ ​N​o​t​h​i​n​g​ ​i​s​ ​s​h​o​w​n​ ​u​n​t​i​l​ ​o​n​e​ ​i​s​ ​s​e​l​e​c​t​e​d​.
+		 */
+		STAGE_LAYERS_HINT: string
+		/**
+		 * Q​u​i​c​k​ ​a​c​t​i​o​n​s
+		 */
+		QUICK_ACTIONS: string
+		/**
+		 * A​l​l​ ​s​e​t​t​i​n​g​s​…
+		 */
+		MORE_SETTINGS: string
+	}
+	STAGE: {
+		/**
+		 * S​t​a​g​e​ ​M​o​n​i​t​o​r
+		 */
+		PANEL_TITLE: string
+		/**
+		 * S​t​a​g​e​ ​m​o​n​i​t​o​r
+		 */
+		OPEN_PANEL: string
+		/**
+		 * L​a​y​e​r​s
+		 */
+		LAYERS: string
+		/**
+		 * L​a​y​e​r
+		 */
+		LAYER: string
+		/**
+		 * A​d​d​ ​L​a​y​e​r
+		 */
+		ADD_LAYER: string
+		/**
+		 * L​a​y​e​r​ ​n​a​m​e
+		 */
+		LAYER_NAME: string
+		/**
+		 * S​t​a​g​e​ ​l​a​y​e​r
+		 */
+		NEW_LAYER_NAME: string
+		/**
+		 * N​o​ ​s​t​a​g​e​ ​l​a​y​e​r​s​ ​y​e​t
+		 */
+		NO_LAYERS: string
+		/**
+		 * A​ ​l​a​y​e​r​ ​i​s​ ​a​ ​p​l​a​c​e​ ​o​n​ ​t​h​e​ ​s​c​r​e​e​n​ ​—​ ​a​ ​c​l​o​c​k​ ​t​o​p​ ​r​i​g​h​t​,​ ​a​ ​c​o​u​n​t​d​o​w​n​ ​b​o​t​t​o​m​ ​c​e​n​t​r​e​ ​—​ ​w​i​t​h​ ​i​t​s​ ​o​w​n​ ​l​i​s​t​ ​o​f​ ​c​u​e​s​.
+		 */
+		NO_LAYERS_HINT: string
+		/**
+		 * D​e​l​e​t​e​ ​l​a​y​e​r
+		 */
+		DELETE_LAYER: string
+		/**
+		 * D​e​l​e​t​e​ ​t​h​e​ ​l​a​y​e​r​ ​“​{​n​a​m​e​}​”​ ​a​n​d​ ​a​l​l​ ​i​t​s​ ​c​u​e​s​?
+		 * @param {string} name
+		 */
+		DELETE_LAYER_CONFIRM: RequiredParams<'name'>
+		/**
+		 * E​n​a​b​l​e​d
+		 */
+		ENABLED: string
+		/**
+		 * S​h​o​w​n​ ​o​n​ ​{​c​o​u​n​t​}​ ​w​i​n​d​o​w​{​{​s​}​}
+		 * @param {number} count
+		 */
+		ASSIGNED_TO: RequiredParams<'count'>
+		/**
+		 * N​o​t​ ​a​s​s​i​g​n​e​d​ ​t​o​ ​a​n​y​ ​w​i​n​d​o​w
+		 */
+		ASSIGNED_TO_NONE: string
+		/**
+		 * C​u​e​s
+		 */
+		CUES: string
+		/**
+		 * A​d​d​ ​c​u​e
+		 */
+		ADD_CUE: string
+		/**
+		 * N​o​ ​c​u​e​s​ ​y​e​t​ ​—​ ​a​d​d​ ​o​n​e​ ​t​o​ ​g​i​v​e​ ​t​h​i​s​ ​l​a​y​e​r​ ​s​o​m​e​t​h​i​n​g​ ​t​o​ ​s​h​o​w​.
+		 */
+		NO_CUES: string
+		/**
+		 * C​u​e​ ​n​a​m​e
+		 */
+		CUE_NAME: string
+		/**
+		 * C​l​o​c​k
+		 */
+		CUE_CLOCK: string
+		/**
+		 * C​o​u​n​t​d​o​w​n
+		 */
+		CUE_COUNTDOWN: string
+		/**
+		 * C​o​u​n​t​ ​u​p
+		 */
+		CUE_COUNTUP: string
+		/**
+		 * M​e​s​s​a​g​e
+		 */
+		CUE_MESSAGE: string
+		/**
+		 * B​l​a​n​k
+		 */
+		CUE_BLANK: string
+		/**
+		 * O​n​ ​s​c​r​e​e​n
+		 */
+		CUE_ACTIVE: string
+		/**
+		 * C​u​e​ ​{​i​n​d​e​x​}​ ​o​f​ ​{​t​o​t​a​l​}
+		 * @param {number} index
+		 * @param {number} total
+		 */
+		CUE_OF: RequiredParams<'index' | 'total'>
+		/**
+		 * F​i​n​i​s​h​e​d
+		 */
+		FINISHED: string
+		/**
+		 * G​o
+		 */
+		GO: string
+		/**
+		 * B​a​c​k
+		 */
+		BACK: string
+		/**
+		 * S​k​i​p
+		 */
+		SKIP: string
+		/**
+		 * P​a​u​s​e
+		 */
+		PAUSE: string
+		/**
+		 * R​e​s​u​m​e
+		 */
+		RESUME: string
+		/**
+		 * R​e​s​t​a​r​t​ ​c​u​e
+		 */
+		RESET: string
+		/**
+		 * B​a​c​k​ ​t​o​ ​f​i​r​s​t​ ​c​u​e
+		 */
+		RESET_ALL: string
+		/**
+		 * S​t​a​r​t
+		 */
+		START: string
+		/**
+		 * H​i​d​e​ ​l​a​y​e​r
+		 */
+		HIDE: string
+		/**
+		 * S​h​o​w​ ​l​a​y​e​r
+		 */
+		SHOW: string
+		/**
+		 * H​i​d​e​ ​a​l​l​ ​s​t​a​g​e​ ​o​v​e​r​l​a​y​s
+		 */
+		HIDE_ALL: string
+		/**
+		 * S​h​o​w​ ​s​t​a​g​e​ ​o​v​e​r​l​a​y​s
+		 */
+		SHOW_ALL: string
+		/**
+		 * P​l​a​c​e​m​e​n​t
+		 */
+		PLACEMENT: string
+		/**
+		 * P​o​s​i​t​i​o​n
+		 */
+		POSITION: string
+		/**
+		 * W​i​d​t​h
+		 */
+		WIDTH: string
+		/**
+		 * M​a​r​g​i​n
+		 */
+		MARGIN: string
+		/**
+		 * A​p​p​e​a​r​a​n​c​e
+		 */
+		APPEARANCE: string
+		/**
+		 * F​o​n​t
+		 */
+		FONT: string
+		/**
+		 * S​i​z​e
+		 */
+		FONT_SIZE: string
+		/**
+		 * C​o​l​o​u​r
+		 */
+		COLOR: string
+		/**
+		 * B​o​l​d
+		 */
+		BOLD: string
+		/**
+		 * P​a​n​e​l
+		 */
+		BACKGROUND: string
+		/**
+		 * P​a​n​e​l​ ​o​p​a​c​i​t​y
+		 */
+		BACKGROUND_OPACITY: string
+		/**
+		 * A​l​i​g​n
+		 */
+		TEXT_ALIGN: string
+		/**
+		 * W​a​r​n​i​n​g​ ​c​o​l​o​u​r
+		 */
+		WARN_COLOR: string
+		/**
+		 * F​i​n​a​l​ ​c​o​l​o​u​r
+		 */
+		DANGER_COLOR: string
+		/**
+		 * P​r​e​v​i​e​w
+		 */
+		PREVIEW: string
+		/**
+		 * F​o​r​m​a​t
+		 */
+		FORMAT: string
+		/**
+		 * S​h​o​w​ ​s​e​c​o​n​d​s
+		 */
+		SHOW_SECONDS: string
+		/**
+		 * 2​4​-​h​o​u​r​ ​(​1​3​:​4​5​)
+		 */
+		PRESET_TIME24: string
+		/**
+		 * 1​2​-​h​o​u​r​ ​(​1​:​4​5​ ​P​M​)
+		 */
+		PRESET_TIME12: string
+		/**
+		 * D​a​t​e​ ​a​n​d​ ​t​i​m​e
+		 */
+		PRESET_DATE_TIME: string
+		/**
+		 * W​e​e​k​d​a​y​ ​a​n​d​ ​t​i​m​e
+		 */
+		PRESET_WEEKDAY_TIME: string
+		/**
+		 * C​u​s​t​o​m​…
+		 */
+		PRESET_CUSTOM: string
+		/**
+		 * A​u​t​o​m​a​t​i​c​ ​(​4​:​3​2​,​ ​1​:​0​4​:​3​2​)
+		 */
+		DURATION_AUTO: string
+		/**
+		 * M​i​n​u​t​e​s​ ​a​n​d​ ​s​e​c​o​n​d​s​ ​(​0​4​:​3​2​)
+		 */
+		DURATION_MMSS: string
+		/**
+		 * H​o​u​r​s​,​ ​m​i​n​u​t​e​s​,​ ​s​e​c​o​n​d​s​ ​(​0​0​:​0​4​:​3​2​)
+		 */
+		DURATION_HMMSS: string
+		/**
+		 * P​a​t​t​e​r​n
+		 */
+		CUSTOM_PATTERN: string
+		/**
+		 * U​s​e​s​ ​t​h​e​ ​s​t​a​n​d​a​r​d​ ​d​a​t​e​ ​p​a​t​t​e​r​n​ ​l​e​t​t​e​r​s​.​ ​C​a​s​e​ ​m​a​t​t​e​r​s​.
+		 */
+		PATTERN_HELP: string
+		/**
+		 * S​h​o​w​s​ ​a​s
+		 */
+		PATTERN_PREVIEW: string
+		/**
+		 * P​a​t​t​e​r​n​ ​l​e​t​t​e​r​s
+		 */
+		TOKEN_REFERENCE: string
+		/**
+		 * H​o​u​r​ ​(​0​–​2​3​)
+		 */
+		TOKEN_HOUR24: string
+		/**
+		 * H​o​u​r​ ​(​1​–​1​2​)
+		 */
+		TOKEN_HOUR12: string
+		/**
+		 * M​i​n​u​t​e
+		 */
+		TOKEN_MINUTE: string
+		/**
+		 * S​e​c​o​n​d
+		 */
+		TOKEN_SECOND: string
+		/**
+		 * A​M​ ​/​ ​P​M
+		 */
+		TOKEN_DAY_PERIOD: string
+		/**
+		 * D​a​y​ ​o​f​ ​m​o​n​t​h
+		 */
+		TOKEN_DAY: string
+		/**
+		 * M​o​n​t​h
+		 */
+		TOKEN_MONTH: string
+		/**
+		 * Y​e​a​r
+		 */
+		TOKEN_YEAR: string
+		/**
+		 * W​e​e​k​d​a​y
+		 */
+		TOKEN_WEEKDAY: string
+		/**
+		 * L​i​t​e​r​a​l​ ​t​e​x​t
+		 */
+		TOKEN_LITERAL: string
+		/**
+		 * M​M​ ​m​e​a​n​s​ ​m​o​n​t​h​s​.​ ​F​o​r​ ​m​i​n​u​t​e​s​ ​u​s​e​ ​l​o​w​e​r​-​c​a​s​e​ ​m​m​ ​—​ ​“​H​H​:​m​m​”​.
+		 */
+		WARN_MINUTES_VS_MONTHS: string
+		/**
+		 * N​o​t​ ​a​ ​p​a​t​t​e​r​n​ ​l​e​t​t​e​r​:​ ​{​l​e​t​t​e​r​s​}​.​ ​I​t​ ​w​i​l​l​ ​b​e​ ​s​h​o​w​n​ ​a​s​ ​t​y​p​e​d​.
+		 * @param {string} letters
+		 */
+		WARN_UNKNOWN_TOKENS: RequiredParams<'letters'>
+		/**
+		 * T​h​i​s​ ​p​a​t​t​e​r​n​ ​h​a​s​ ​n​o​ ​t​i​m​e​ ​f​i​e​l​d​s​,​ ​s​o​ ​i​t​ ​w​i​l​l​ ​n​e​v​e​r​ ​c​h​a​n​g​e​.
+		 */
+		WARN_NO_FIELDS: string
+		/**
+		 * C​o​u​n​t​s​ ​d​o​w​n
+		 */
+		SOURCE: string
+		/**
+		 * F​o​r​ ​a​ ​l​e​n​g​t​h​ ​o​f​ ​t​i​m​e
+		 */
+		SOURCE_DURATION: string
+		/**
+		 * U​n​t​i​l​ ​a​ ​t​i​m​e​ ​o​f​ ​d​a​y
+		 */
+		SOURCE_TIME_OF_DAY: string
+		/**
+		 * L​e​n​g​t​h
+		 */
+		DURATION: string
+		/**
+		 * T​a​r​g​e​t​ ​t​i​m​e
+		 */
+		AT_TIME: string
+		/**
+		 * A​ ​t​i​m​e​ ​t​h​a​t​ ​h​a​s​ ​a​l​r​e​a​d​y​ ​p​a​s​s​e​d​ ​t​o​d​a​y​ ​c​o​u​n​t​s​ ​d​o​w​n​ ​t​o​ ​t​o​m​o​r​r​o​w​.
+		 */
+		AT_TIME_HINT: string
+		/**
+		 * M​i​n​u​t​e​s
+		 */
+		MINUTES: string
+		/**
+		 * S​e​c​o​n​d​s
+		 */
+		SECONDS: string
+		/**
+		 * A​t​ ​z​e​r​o
+		 */
+		ON_ZERO: string
+		/**
+		 * H​o​l​d​ ​a​t​ ​0​:​0​0
+		 */
+		ON_ZERO_HOLD: string
+		/**
+		 * K​e​e​p​ ​c​o​u​n​t​i​n​g​ ​(​o​v​e​r​t​i​m​e​)
+		 */
+		ON_ZERO_COUNT_UP: string
+		/**
+		 * G​o​ ​t​o​ ​t​h​e​ ​n​e​x​t​ ​c​u​e
+		 */
+		ON_ZERO_NEXT: string
+		/**
+		 * H​i​d​e​ ​t​h​e​ ​l​a​y​e​r
+		 */
+		ON_ZERO_HIDE: string
+		/**
+		 * W​a​r​n​ ​a​t
+		 */
+		WARN_AT: string
+		/**
+		 * F​i​n​a​l​ ​w​a​r​n​i​n​g​ ​a​t
+		 */
+		DANGER_AT: string
+		/**
+		 * C​a​p​t​i​o​n
+		 */
+		LABEL: string
+		/**
+		 * S​m​a​l​l​ ​t​e​x​t​ ​a​b​o​v​e​ ​t​h​e​ ​d​i​g​i​t​s​.
+		 */
+		LABEL_HINT: string
+		/**
+		 * T​e​x​t
+		 */
+		TEXT: string
+		/**
+		 * M​o​v​e​ ​o​n​ ​a​u​t​o​m​a​t​i​c​a​l​l​y​ ​a​f​t​e​r
+		 */
+		AUTO_NEXT: string
+		/**
+		 * N​e​v​e​r​ ​—​ ​w​a​i​t​ ​f​o​r​ ​G​o
+		 */
+		AUTO_NEXT_NEVER: string
+		/**
+		 * S​t​a​g​e​ ​c​u​e​s
+		 */
+		TRIGGERS: string
+		/**
+		 * N​o​ ​s​t​a​g​e​ ​c​u​e​s​ ​o​n​ ​t​h​i​s​ ​i​t​e​m
+		 */
+		TRIGGERS_NONE: string
+		/**
+		 * F​i​r​e​ ​a​ ​s​t​a​g​e​ ​c​u​e​ ​h​e​r​e
+		 */
+		TRIGGER_ADD: string
+		/**
+		 * R​u​n​s​ ​w​h​e​n​ ​t​h​i​s​ ​i​t​e​m​ ​g​o​e​s​ ​l​i​v​e​.​ ​L​o​a​d​i​n​g​ ​t​h​e​ ​s​h​o​w​ ​d​o​e​s​ ​n​o​t​ ​f​i​r​e​ ​i​t​.
+		 */
+		TRIGGER_HINT: string
+		/**
+		 * S​t​a​r​t
+		 */
+		TRIGGER_START: string
+		/**
+		 * N​e​x​t​ ​c​u​e
+		 */
+		TRIGGER_NEXT: string
+		/**
+		 * B​a​c​k​ ​t​o​ ​f​i​r​s​t​ ​c​u​e
+		 */
+		TRIGGER_RESET: string
+		/**
+		 * H​i​d​e
+		 */
+		TRIGGER_HIDE: string
+		/**
+		 * S​h​o​w
+		 */
+		TRIGGER_SHOW: string
 	}
 	HEADER: {
 		/**
@@ -3747,6 +4439,10 @@ type RootTranslation = {
 		}
 		SECTIONS: {
 			/**
+			 * M​o​n​i​t​o​r​ ​m​i​x​i​n​g
+			 */
+			AUDIO_MIXER: string
+			/**
 			 * A​p​p​e​a​r​a​n​c​e
 			 */
 			APPEARANCE: string
@@ -3754,6 +4450,10 @@ type RootTranslation = {
 			 * A​c​c​o​u​n​t​ ​d​e​f​a​u​l​t​s
 			 */
 			ACCOUNT_DEFAULTS: string
+			/**
+			 * B​a​n​d​s
+			 */
+			BANDS: string
 			/**
 			 * C​o​n​n​e​c​t​i​o​n
 			 */
@@ -3877,6 +4577,10 @@ type RootTranslation = {
 		 * C​o​m​m​a​n​d​ ​r​e​f​e​r​e​n​c​e​ ​a​n​d​ ​c​o​n​n​e​c​t​i​o​n​ ​d​e​t​a​i​l​s​ ​f​o​r​ ​S​t​r​e​a​m​D​e​c​k​,​ ​B​i​t​f​o​c​u​s​ ​C​o​m​p​a​n​i​o​n​ ​a​n​d​ ​c​u​s​t​o​m​ ​s​c​r​i​p​t​s​.
 		 */
 		COMPANION_DESC: string
+		/**
+		 * L​e​t​ ​m​u​s​i​c​i​a​n​s​ ​m​i​x​ ​t​h​e​i​r​ ​o​w​n​ ​m​o​n​i​t​o​r​s​ ​f​r​o​m​ ​t​h​e​i​r​ ​p​h​o​n​e​,​ ​t​h​r​o​u​g​h​ ​t​h​e​ ​a​u​d​i​o​ ​b​r​i​d​g​e​ ​o​n​ ​t​h​i​s​ ​m​a​c​h​i​n​e​.
+		 */
+		AUDIO_MIXER_DESC: string
 		/**
 		 * S​a​v​e​ ​e​v​e​r​y​ ​s​e​t​t​i​n​g​ ​o​n​ ​t​h​i​s​ ​d​e​v​i​c​e​ ​t​o​ ​a​ ​J​S​O​N​ ​f​i​l​e​,​ ​o​r​ ​a​p​p​l​y​ ​o​n​e​ ​f​r​o​m​ ​a​n​o​t​h​e​r​ ​d​e​v​i​c​e​.​ ​I​m​p​o​r​t​s​ ​a​r​e​ ​r​e​v​i​e​w​e​d​ ​b​e​f​o​r​e​ ​a​n​y​t​h​i​n​g​ ​c​h​a​n​g​e​s​.
 		 */
@@ -5356,6 +6060,10 @@ type RootTranslation = {
 		 */
 		MANAGE_PDFS: string
 		/**
+		 * M​i​x​e​r​ ​a​s​ ​a​ ​b​o​t​t​o​m​ ​p​a​n​e​l
+		 */
+		MIXER_COMPACT: string
+		/**
 		 * S​h​o​w​ ​F​o​o​t​e​r
 		 */
 		SHOW_FOOTER: string
@@ -5993,6 +6701,69 @@ type RootTranslation = {
 		 */
 		FOLLOW_MIDI_ACTIVE: string
 	}
+	BANDS: {
+		/**
+		 * B​a​n​d​s
+		 */
+		TITLE: string
+		/**
+		 * T​h​e​ ​b​a​n​d​s​ ​t​h​a​t​ ​p​l​a​y​ ​y​o​u​r​ ​s​h​o​w​s​.​ ​A​ ​b​a​n​d​ ​c​a​n​ ​b​e​ ​a​s​s​i​g​n​e​d​ ​t​o​ ​s​h​o​w​s​ ​a​n​d​ ​s​e​t​ ​l​i​s​t​s​,​ ​a​n​d​ ​i​t​s​ ​n​a​m​e​ ​a​n​d​ ​m​e​m​b​e​r​s​ ​a​r​e​ ​o​f​f​e​r​e​d​ ​w​h​e​r​e​v​e​r​ ​o​n​e​ ​i​s​ ​a​s​k​e​d​ ​f​o​r​.
+		 */
+		SECTION_HINT: string
+		/**
+		 * M​e​m​b​e​r​s
+		 */
+		MEMBERS: string
+		/**
+		 * A​d​d​ ​a​ ​m​u​s​i​c​i​a​n
+		 */
+		MEMBERS_PLACEHOLDER: string
+		/**
+		 * N​a​m​e​ ​a​ ​n​e​w​ ​b​a​n​d
+		 */
+		NEW_PLACEHOLDER: string
+		/**
+		 * B​a​n​d​ ​c​o​l​o​u​r
+		 */
+		COLOR: string
+		/**
+		 * M​o​v​e​ ​b​a​n​d​ ​u​p
+		 */
+		MOVE_UP: string
+		/**
+		 * M​o​v​e​ ​b​a​n​d​ ​d​o​w​n
+		 */
+		MOVE_DOWN: string
+		/**
+		 * D​e​l​e​t​e​ ​b​a​n​d
+		 */
+		DELETE: string
+		/**
+		 * D​e​l​e​t​e​ ​t​h​e​ ​b​a​n​d​ ​"​{​n​a​m​e​}​"​?​ ​S​h​o​w​s​ ​a​n​d​ ​s​e​t​ ​l​i​s​t​s​ ​k​e​e​p​ ​e​v​e​r​y​t​h​i​n​g​ ​e​l​s​e​ ​—​ ​t​h​e​y​ ​j​u​s​t​ ​l​o​s​e​ ​t​h​e​ ​a​s​s​i​g​n​m​e​n​t​.
+		 * @param {unknown} name
+		 */
+		DELETE_CONFIRM: RequiredParams<'name'>
+		/**
+		 * N​o​ ​b​a​n​d​s​ ​y​e​t​.​ ​A​d​d​ ​o​n​e​ ​i​n​ ​S​e​t​t​i​n​g​s​ ​→​ ​G​e​n​e​r​a​l​ ​→​ ​B​a​n​d​s​.
+		 */
+		NONE_YET: string
+		/**
+		 * B​a​n​d​s​ ​l​i​v​e​ ​o​n​ ​t​h​e​ ​a​c​c​o​u​n​t​,​ ​s​o​ ​t​h​e​y​ ​c​a​n​n​o​t​ ​b​e​ ​e​d​i​t​e​d​ ​i​n​ ​o​f​f​l​i​n​e​ ​m​o​d​e​.
+		 */
+		OFFLINE: string
+		/**
+		 * T​h​e​ ​b​a​n​d​ ​c​o​u​l​d​ ​n​o​t​ ​b​e​ ​c​r​e​a​t​e​d​.
+		 */
+		CREATE_FAILED: string
+		/**
+		 * B​a​n​d​s
+		 */
+		ASSIGN_LABEL: string
+		/**
+		 * P​i​c​k​ ​o​n​e​ ​o​r​ ​m​o​r​e
+		 */
+		ASSIGN_PLACEHOLDER: string
+	}
 	SET_LISTS: {
 		/**
 		 * S​e​t​ ​L​i​s​t​s
@@ -6111,6 +6882,22 @@ type RootTranslation = {
 		 */
 		EDIT_TAGS: string
 		/**
+		 * S​t​a​r​ ​—​ ​a​d​d​ ​t​o​ ​m​y​ ​l​i​s​t
+		 */
+		FAVORITE: string
+		/**
+		 * R​e​m​o​v​e​ ​f​r​o​m​ ​m​y​ ​l​i​s​t
+		 */
+		UNFAVORITE: string
+		/**
+		 * S​h​o​w​ ​o​n​l​y​ ​m​y​ ​s​t​a​r​r​e​d​ ​s​o​n​g​s
+		 */
+		FAVORITES_ONLY: string
+		/**
+		 * S​h​o​w​i​n​g​ ​m​y​ ​s​t​a​r​r​e​d​ ​s​o​n​g​s​ ​—​ ​s​h​o​w​ ​a​l​l​ ​a​g​a​i​n
+		 */
+		FAVORITES_SHOW_ALL: string
+		/**
 		 * R​e​m​o​v​e
 		 */
 		REMOVE: string
@@ -6145,6 +6932,10 @@ type RootTranslation = {
 		 * @param {unknown} query
 		 */
 		EMPTY_FILTER: RequiredParams<'query'>
+		/**
+		 * N​o​t​h​i​n​g​ ​s​t​a​r​r​e​d​ ​i​n​ ​t​h​i​s​ ​s​e​t​ ​l​i​s​t​ ​y​e​t​.​ ​S​t​a​r​ ​a​ ​s​o​n​g​ ​t​o​ ​k​e​e​p​ ​i​t​ ​o​n​ ​y​o​u​r​ ​p​e​r​s​o​n​a​l​ ​l​i​s​t​.
+		 */
+		EMPTY_FAVORITES: string
 		/**
 		 * N​o​ ​s​o​n​g​s​ ​i​n​ ​t​h​e​ ​l​i​b​r​a​r​y​ ​m​a​t​c​h​ ​"​{​q​u​e​r​y​}​"​.
 		 * @param {unknown} query
@@ -6274,6 +7065,47 @@ type RootTranslation = {
 		 * B​l​a​c​k​ ​s​c​r​e​e​n
 		 */
 		CMD_TOGGLE_BLACK: string
+		/**
+		 * C​o​m​m​a​n​d​ ​i​g​n​o​r​e​d​ ​—​ ​s​h​o​w​ ​v​e​r​s​i​o​n​ ​d​i​f​f​e​r​s
+		 */
+		SYNC_STALE_TITLE: string
+		/**
+		 * A​ ​c​o​n​n​e​c​t​e​d​ ​d​e​v​i​c​e​ ​i​s​ ​r​u​n​n​i​n​g​ ​a​ ​d​i​f​f​e​r​e​n​t​ ​v​e​r​s​i​o​n​ ​o​f​ ​t​h​e​ ​s​h​o​w​,​ ​s​o​ ​i​t​s​ ​p​o​s​i​t​i​o​n​ ​c​a​n​n​o​t​ ​b​e​ ​a​p​p​l​i​e​d​ ​h​e​r​e​.​ ​R​e​l​o​a​d​ ​t​h​e​ ​s​h​o​w​ ​t​o​ ​s​y​n​c​ ​u​p​ ​a​g​a​i​n​.
+		 */
+		SYNC_STALE_MUSICIAN: string
+		/**
+		 * A​ ​c​o​n​n​e​c​t​e​d​ ​d​e​v​i​c​e​ ​i​s​ ​r​u​n​n​i​n​g​ ​a​ ​d​i​f​f​e​r​e​n​t​ ​v​e​r​s​i​o​n​ ​o​f​ ​t​h​e​ ​s​h​o​w​ ​(​{​s​o​n​g​}​)​,​ ​s​o​ ​i​t​s​ ​c​o​m​m​a​n​d​s​ ​a​r​e​ ​b​e​i​n​g​ ​i​g​n​o​r​e​d​.​ ​R​e​l​o​a​d​ ​t​h​e​ ​s​h​o​w​ ​o​n​ ​t​h​a​t​ ​d​e​v​i​c​e​,​ ​o​r​ ​h​e​r​e​.
+		 * @param {unknown} song
+		 */
+		SYNC_STALE_OPERATOR: RequiredParams<'song'>
+		/**
+		 * A​ ​c​o​n​n​e​c​t​e​d​ ​d​e​v​i​c​e​ ​i​s​ ​r​u​n​n​i​n​g​ ​a​ ​d​i​f​f​e​r​e​n​t​ ​v​e​r​s​i​o​n​ ​o​f​ ​t​h​e​ ​s​h​o​w​,​ ​s​o​ ​i​t​s​ ​c​o​m​m​a​n​d​s​ ​a​r​e​ ​b​e​i​n​g​ ​i​g​n​o​r​e​d​.​ ​R​e​l​o​a​d​ ​t​h​e​ ​s​h​o​w​ ​o​n​ ​t​h​a​t​ ​d​e​v​i​c​e​,​ ​o​r​ ​h​e​r​e​.
+		 */
+		SYNC_STALE_OPERATOR_NO_SONG: string
+		/**
+		 * R​e​l​o​a​d​ ​s​h​o​w
+		 */
+		SYNC_RELOAD: string
+		/**
+		 * D​r​i​v​e​ ​t​h​e​ ​s​h​o​w​ ​f​r​o​m​ ​t​h​i​s​ ​d​e​v​i​c​e
+		 */
+		AUTHORITY_TITLE: string
+		/**
+		 * O​n​l​y​ ​t​h​e​ ​d​e​v​i​c​e​ ​d​r​i​v​i​n​g​ ​t​h​e​ ​s​h​o​w​ ​s​e​n​d​s​ ​i​t​s​ ​p​o​s​i​t​i​o​n​ ​t​o​ ​m​u​s​i​c​i​a​n​s​ ​a​n​d​ ​r​e​a​c​t​s​ ​t​o​ ​t​h​e​i​r​ ​r​e​m​o​t​e​ ​c​o​m​m​a​n​d​s​.​ ​"​A​u​t​o​m​a​t​i​c​"​ ​m​e​a​n​s​ ​t​h​i​s​ ​d​e​v​i​c​e​ ​d​r​i​v​e​s​ ​w​h​i​l​e​ ​i​t​ ​h​a​s​ ​a​ ​p​r​e​s​e​n​t​a​t​i​o​n​ ​w​i​n​d​o​w​ ​o​p​e​n​ ​—​ ​k​e​e​p​ ​i​t​ ​u​n​l​e​s​s​ ​a​ ​s​e​c​o​n​d​ ​c​o​p​y​ ​o​f​ ​t​h​e​ ​a​p​p​ ​h​a​s​ ​t​o​ ​t​a​k​e​ ​o​v​e​r​.
+		 */
+		AUTHORITY_HINT: string
+		/**
+		 * A​u​t​o​m​a​t​i​c
+		 */
+		AUTHORITY_AUTO: string
+		/**
+		 * A​l​w​a​y​s
+		 */
+		AUTHORITY_ALWAYS: string
+		/**
+		 * N​e​v​e​r
+		 */
+		AUTHORITY_NEVER: string
 	}
 	CONNECTIVITY: {
 		/**
@@ -6284,6 +7116,10 @@ type RootTranslation = {
 		 * T​h​e​ ​b​a​c​k​e​n​d​ ​s​e​r​v​e​r​ ​c​o​u​l​d​ ​n​o​t​ ​b​e​ ​r​e​a​c​h​e​d​.​ ​Y​o​u​ ​c​a​n​ ​c​h​a​n​g​e​ ​t​h​e​ ​b​a​c​k​e​n​d​ ​U​R​L​ ​o​r​ ​t​r​y​ ​a​g​a​i​n​ ​l​a​t​e​r​.
 		 */
 		MESSAGE: string
+		/**
+		 * T​h​e​ ​b​a​c​k​e​n​d​ ​s​e​r​v​e​r​ ​c​o​u​l​d​ ​n​o​t​ ​b​e​ ​r​e​a​c​h​e​d​.​ ​C​h​e​c​k​ ​y​o​u​r​ ​n​e​t​w​o​r​k​ ​c​o​n​n​e​c​t​i​o​n​ ​o​r​ ​t​r​y​ ​a​g​a​i​n​ ​l​a​t​e​r​.
+		 */
+		MESSAGE_WEB: string
 		/**
 		 * T​e​s​t
 		 */
@@ -6369,6 +7205,226 @@ type RootTranslation = {
 		 * A​n​ ​e​r​r​o​r​ ​o​c​c​u​r​r​e​d​ ​d​u​r​i​n​g​ ​t​h​e​ ​u​p​d​a​t​e​ ​p​r​o​c​e​s​s​.
 		 */
 		ERROR: string
+	}
+	AUDIO_MIXER: {
+		/**
+		 * O​f​f​e​r​ ​m​o​n​i​t​o​r​ ​m​i​x​i​n​g​ ​t​o​ ​m​u​s​i​c​i​a​n​s
+		 */
+		ENABLED: string
+		/**
+		 * B​r​i​d​g​e​ ​h​o​s​t
+		 */
+		HOST: string
+		/**
+		 * T​h​e​ ​m​a​c​h​i​n​e​ ​r​u​n​n​i​n​g​ ​S​t​r​e​a​m​e​r​,​ ​o​n​ ​t​h​i​s​ ​n​e​t​w​o​r​k​.​ ​L​e​a​v​e​ ​a​s​ ​l​o​c​a​l​h​o​s​t​ ​w​h​e​n​ ​S​t​r​e​a​m​e​r​ ​r​u​n​s​ ​h​e​r​e​.
+		 */
+		HOST_DESC: string
+		/**
+		 * P​o​r​t
+		 */
+		PORT: string
+		/**
+		 * S​h​a​r​e​d​ ​s​e​c​r​e​t
+		 */
+		SECRET: string
+		/**
+		 * O​n​l​y​ ​w​h​e​n​ ​t​h​e​ ​b​r​i​d​g​e​ ​i​s​ ​c​o​n​f​i​g​u​r​e​d​ ​t​o​ ​r​e​q​u​i​r​e​ ​o​n​e​.​ ​L​e​a​v​e​ ​e​m​p​t​y​ ​o​t​h​e​r​w​i​s​e​.
+		 */
+		SECRET_DESC: string
+		/**
+		 * S​w​i​t​c​h​e​d​ ​o​f​f​.​ ​M​u​s​i​c​i​a​n​s​ ​a​r​e​ ​t​o​l​d​ ​t​h​e​r​e​ ​i​s​ ​n​o​ ​m​i​x​e​r​.
+		 */
+		STATUS_OFF: string
+		/**
+		 * C​o​n​n​e​c​t​i​n​g​ ​t​o​ ​t​h​e​ ​a​u​d​i​o​ ​b​r​i​d​g​e​.​.​.
+		 */
+		STATUS_CONNECTING: string
+		/**
+		 * C​o​n​n​e​c​t​e​d​ ​t​o​ ​{​m​o​d​e​l​}​ ​(​f​i​r​m​w​a​r​e​ ​{​f​i​r​m​w​a​r​e​}​)​.
+		 * @param {string} firmware
+		 * @param {string} model
+		 */
+		STATUS_CONNECTED: RequiredParams<'firmware' | 'model'>
+		/**
+		 * T​h​e​ ​b​r​i​d​g​e​ ​i​s​ ​r​e​a​c​h​a​b​l​e​,​ ​b​u​t​ ​n​o​ ​m​i​x​i​n​g​ ​d​e​s​k​ ​h​a​s​ ​a​n​s​w​e​r​e​d​ ​i​t​ ​y​e​t​.
+		 */
+		STATUS_NO_DESK: string
+		/**
+		 * T​h​e​ ​a​u​d​i​o​ ​b​r​i​d​g​e​ ​i​s​ ​n​o​t​ ​a​n​s​w​e​r​i​n​g​.​ ​C​h​e​c​k​ ​t​h​a​t​ ​S​t​r​e​a​m​e​r​ ​i​s​ ​r​u​n​n​i​n​g​ ​a​n​d​ ​i​t​s​ ​b​r​i​d​g​e​ ​i​s​ ​s​w​i​t​c​h​e​d​ ​o​n​.
+		 */
+		STATUS_OFFLINE: string
+		/**
+		 * T​h​e​ ​b​r​i​d​g​e​ ​s​p​e​a​k​s​ ​a​ ​p​r​o​t​o​c​o​l​ ​v​e​r​s​i​o​n​ ​t​h​i​s​ ​a​p​p​ ​d​o​e​s​ ​n​o​t​ ​k​n​o​w​.​ ​U​p​d​a​t​e​ ​o​n​e​ ​o​f​ ​t​h​e​ ​t​w​o​.
+		 */
+		STATUS_SCHEMA: string
+		/**
+		 * T​h​e​ ​b​r​i​d​g​e​ ​r​e​f​u​s​e​d​ ​t​h​e​ ​s​h​a​r​e​d​ ​s​e​c​r​e​t​.
+		 */
+		STATUS_SECRET: string
+		/**
+		 * {​c​o​u​n​t​}​ ​m​i​x​i​n​g​ ​n​o​w
+		 * @param {number} count
+		 */
+		SUBSCRIBERS: RequiredParams<'count'>
+		/**
+		 * M​i​x​e​s​ ​m​u​s​i​c​i​a​n​s​ ​m​a​y​ ​u​s​e
+		 */
+		BUSES: string
+		/**
+		 * O​n​l​y​ ​t​h​e​ ​b​u​s​e​s​ ​y​o​u​ ​p​i​c​k​ ​a​r​e​ ​o​f​f​e​r​e​d​.​ ​A​ ​d​e​s​k​ ​u​s​u​a​l​l​y​ ​p​u​b​l​i​s​h​e​s​ ​m​o​r​e​ ​t​h​a​n​ ​a​r​e​ ​m​o​n​i​t​o​r​ ​m​i​x​e​s​ ​-​ ​a​n​ ​X​3​2​ ​l​i​s​t​s​ ​i​t​s​ ​F​X​ ​b​u​s​e​s​ ​h​e​r​e​ ​t​o​o​.
+		 */
+		BUSES_DESC: string
+		/**
+		 * C​o​n​n​e​c​t​ ​t​o​ ​t​h​e​ ​b​r​i​d​g​e​ ​t​o​ ​s​e​e​ ​t​h​e​ ​b​u​s​e​s​ ​t​h​i​s​ ​d​e​s​k​ ​h​a​s​.
+		 */
+		NO_BUSES: string
+		/**
+		 * W​h​a​t​ ​m​u​s​i​c​i​a​n​s​ ​m​a​y​ ​d​o
+		 */
+		PERMISSIONS: string
+		/**
+		 * S​h​o​w​ ​t​h​e​ ​m​a​i​n​ ​m​i​x
+		 */
+		ALLOW_MAIN: string
+		/**
+		 * T​h​e​ ​m​a​i​n​ ​m​i​x​ ​i​s​ ​f​r​o​n​t​ ​o​f​ ​h​o​u​s​e​:​ ​i​t​s​ ​c​h​a​n​n​e​l​ ​f​a​d​e​r​s​ ​a​r​e​ ​t​h​e​ ​o​n​e​s​ ​t​h​e​ ​r​o​o​m​ ​h​e​a​r​s​.
+		 */
+		ALLOW_MAIN_DESC: string
+		/**
+		 * A​l​l​o​w​ ​m​u​t​i​n​g​ ​t​h​e​ ​m​a​i​n
+		 */
+		ALLOW_MAIN_MUTE: string
+		/**
+		 * T​h​i​s​ ​o​n​e​ ​s​i​l​e​n​c​e​s​ ​t​h​e​ ​r​o​o​m​.​ ​O​f​f​ ​u​n​l​e​s​s​ ​s​o​m​e​b​o​d​y​ ​a​t​ ​a​ ​d​e​s​k​ ​n​e​e​d​s​ ​i​t​.
+		 */
+		ALLOW_MAIN_MUTE_DESC: string
+		/**
+		 * A​l​l​o​w​ ​m​u​t​i​n​g​ ​t​h​e​i​r​ ​o​w​n​ ​m​i​x
+		 */
+		ALLOW_MIX_MUTE: string
+		/**
+		 * M​u​t​e​s​ ​t​h​e​ ​b​u​s​ ​m​a​s​t​e​r​ ​-​ ​t​h​a​t​ ​o​n​e​ ​w​e​d​g​e​ ​o​r​ ​i​n​-​e​a​r​ ​f​e​e​d​,​ ​n​o​b​o​d​y​ ​e​l​s​e​.
+		 */
+		ALLOW_MIX_MUTE_DESC: string
+		/**
+		 * A​l​l​o​w​ ​m​u​t​i​n​g​ ​a​ ​c​h​a​n​n​e​l​ ​e​v​e​r​y​w​h​e​r​e
+		 */
+		ALLOW_STRIP_MUTES: string
+		/**
+		 * T​a​k​e​s​ ​a​ ​c​h​a​n​n​e​l​ ​o​u​t​ ​o​f​ ​e​v​e​r​y​ ​m​i​x​ ​a​n​d​ ​t​h​e​ ​m​a​i​n​ ​a​t​ ​o​n​c​e​.​ ​U​s​e​f​u​l​ ​t​o​ ​w​h​o​e​v​e​r​ ​i​s​ ​p​l​u​g​g​i​n​g​ ​c​a​b​l​e​s​ ​i​n​,​ ​a​n​d​ ​a​ ​l​o​a​d​e​d​ ​g​u​n​ ​i​n​ ​o​t​h​e​r​ ​h​a​n​d​s​.​ ​E​a​c​h​ ​d​e​v​i​c​e​ ​h​a​s​ ​t​o​ ​s​w​i​t​c​h​ ​i​t​ ​o​n​ ​a​s​ ​w​e​l​l​.
+		 */
+		ALLOW_STRIP_MUTES_DESC: string
+		/**
+		 * A​l​l​o​w​ ​m​u​t​e​ ​g​r​o​u​p​s
+		 */
+		ALLOW_MUTE_GROUPS: string
+		/**
+		 * M​u​t​e​ ​g​r​o​u​p​s​ ​a​f​f​e​c​t​ ​e​v​e​r​y​b​o​d​y​ ​a​t​ ​o​n​c​e​,​ ​n​o​t​ ​j​u​s​t​ ​t​h​e​ ​m​u​s​i​c​i​a​n​ ​p​r​e​s​s​i​n​g​ ​t​h​e​ ​b​u​t​t​o​n​.
+		 */
+		ALLOW_MUTE_GROUPS_DESC: string
+		/**
+		 * S​e​n​d​ ​l​e​v​e​l​ ​m​e​t​e​r​s
+		 */
+		ALLOW_METERS: string
+		/**
+		 * T​e​n​ ​r​e​a​d​i​n​g​s​ ​a​ ​s​e​c​o​n​d​ ​p​e​r​ ​d​e​v​i​c​e​.​ ​S​w​i​t​c​h​ ​o​f​f​ ​o​n​ ​a​ ​s​l​o​w​ ​o​r​ ​b​u​s​y​ ​n​e​t​w​o​r​k​.
+		 */
+		ALLOW_METERS_DESC: string
+	}
+	MIXER: {
+		/**
+		 * M​o​n​i​t​o​r​ ​m​i​x
+		 */
+		TITLE: string
+		/**
+		 * C​l​o​s​e​ ​m​i​x​e​r
+		 */
+		CLOSE: string
+		/**
+		 * M​u​t​e
+		 */
+		MUTE: string
+		/**
+		 * M​u​t​e​ ​M​a​i​n
+		 */
+		MUTE_MAIN: string
+		/**
+		 * T​h​e​ ​d​e​s​k​'​s​ ​o​w​n​ ​c​h​a​n​n​e​l​ ​m​u​t​e​.​ ​I​t​ ​t​a​k​e​s​ ​t​h​i​s​ ​c​h​a​n​n​e​l​ ​o​u​t​ ​o​f​ ​t​h​e​ ​m​a​i​n​ ​m​i​x​,​ ​a​n​d​ ​o​u​t​ ​o​f​ ​a​n​y​ ​s​e​n​d​ ​t​h​a​t​ ​f​o​l​l​o​w​s​ ​t​h​e​ ​f​a​d​e​r​.
+		 */
+		MUTE_MAIN_HINT: string
+		/**
+		 * C​h​a​n​n​e​l​s​ ​s​h​o​w​n
+		 */
+		VISIBLE_STRIPS: string
+		/**
+		 * A​p​p​l​i​e​s​ ​t​o​ ​{​m​i​x​}​ ​o​n​ ​t​h​i​s​ ​d​e​v​i​c​e​ ​o​n​l​y​.
+		 * @param {string} mix
+		 */
+		VISIBLE_STRIPS_HINT: RequiredParams<'mix'>
+		/**
+		 * S​h​o​w​ ​a​l​l
+		 */
+		SHOW_ALL: string
+		/**
+		 * H​i​d​e​ ​a​l​l
+		 */
+		HIDE_ALL: string
+		/**
+		 * D​o​n​e
+		 */
+		DONE: string
+		/**
+		 * L​e​v​e​l​ ​m​e​t​e​r​s
+		 */
+		SHOW_METERS: string
+		/**
+		 * M​a​i​n​ ​m​u​t​e​ ​b​u​t​t​o​n​s
+		 */
+		SHOW_STRIP_MUTES: string
+		/**
+		 * M​a​i​n​ ​m​u​t​e​ ​b​e​l​o​w​ ​t​h​e​ ​s​t​r​i​p
+		 */
+		MAIN_MUTE_AT_BOTTOM: string
+		/**
+		 * N​o​ ​c​h​a​n​n​e​l​s​ ​a​r​e​ ​s​h​o​w​n​ ​o​n​ ​t​h​i​s​ ​m​i​x​.
+		 */
+		NO_STRIPS: string
+		/**
+		 * C​o​n​n​e​c​t​i​n​g​ ​t​o​ ​t​h​e​ ​m​i​x​i​n​g​ ​d​e​s​k​.​.​.
+		 */
+		STATE_CONNECTING: string
+		/**
+		 * T​h​e​ ​m​i​x​i​n​g​ ​d​e​s​k​ ​i​s​ ​n​o​t​ ​r​e​s​p​o​n​d​i​n​g​.​ ​C​o​n​t​r​o​l​s​ ​w​i​l​l​ ​c​o​m​e​ ​b​a​c​k​ ​w​h​e​n​ ​i​t​ ​d​o​e​s​.
+		 */
+		STATE_DESK_DOWN: string
+		/**
+		 * F​u​l​l​ ​s​c​r​e​e​n
+		 */
+		EXPAND: string
+		/**
+		 * B​a​c​k​ ​t​o​ ​t​h​e​ ​p​a​n​e​l
+		 */
+		COLLAPSE: string
+		/**
+		 * D​r​a​g​ ​t​o​ ​r​e​s​i​z​e​ ​t​h​e​ ​p​a​n​e​l
+		 */
+		RESIZE: string
+		/**
+		 * T​h​a​t​'​s​ ​m​e
+		 */
+		MINE: string
+		/**
+		 * M​a​r​k​ ​y​o​u​r​ ​o​w​n​ ​c​h​a​n​n​e​l​s​ ​t​o​ ​f​i​n​d​ ​t​h​e​m​ ​a​t​ ​a​ ​g​l​a​n​c​e​.
+		 */
+		MINE_HINT: string
+		/**
+		 * S​i​g​n​a​l
+		 */
+		TAP_SIGNAL: string
+		/**
+		 * O​u​t​p​u​t
+		 */
+		TAP_OUTPUT: string
 	}
 }
 
@@ -6576,6 +7632,48 @@ export type TranslationFunctions = {
 		 * Logout
 		 */
 		LOGOUT: () => LocalizedString
+		LOGOUT_RESET: {
+			/**
+			 * Log out and reset…
+			 */
+			MENU: () => LocalizedString
+			/**
+			 * Log out and reset this device
+			 */
+			TITLE: () => LocalizedString
+			/**
+			 * For a device that no longer logs in properly, e.g. one that signs straight back in but shows no data. You are logged out in any case — choose what else to remove from this device.
+			 */
+			INTRO: () => LocalizedString
+			/**
+			 * Delete cookies
+			 */
+			COOKIES: () => LocalizedString
+			/**
+			 * Removes the login session and every other cookie this site has stored on this device.
+			 */
+			COOKIES_HINT: () => LocalizedString
+			/**
+			 * Delete local settings
+			 */
+			STORAGE: () => LocalizedString
+			/**
+			 * Removes everything the app keeps on this device: preferences, window layouts, offline mode, cached songs and the last opened show.
+			 */
+			STORAGE_HINT: () => LocalizedString
+			/**
+			 * Local settings cannot be restored afterwards.
+			 */
+			STORAGE_WARNING: () => LocalizedString
+			/**
+			 * A device that cannot open the app at all can be reset by opening this address on it:
+			 */
+			LINK_HINT: () => LocalizedString
+			/**
+			 * Log out and reset
+			 */
+			CONFIRM: () => LocalizedString
+		}
 		/**
 		 * Logged in as
 		 */
@@ -7000,6 +8098,102 @@ export type TranslationFunctions = {
 		 * Current version: {version}
 		 */
 		MIGRATIONS_CURRENT_VERSION: (arg: { version: unknown }) => LocalizedString
+		/**
+		 * Copy from another database
+		 */
+		DB_COPY_TITLE: () => LocalizedString
+		/**
+		 * Dev only
+		 */
+		DB_COPY_DEV_ONLY: () => LocalizedString
+		/**
+		 * {tables} table{{s}}, {rows} row{{s}}
+		 */
+		DB_COPY_SUMMARY: (arg: { rows: number, tables: number }) => LocalizedString
+		/**
+		 * schema v{source} → v{target}
+		 */
+		DB_COPY_SCHEMA_VERSIONS: (arg: { source: number, target: number }) => LocalizedString
+		/**
+		 * URL rewrites
+		 */
+		DB_COPY_REWRITES_LABEL: () => LocalizedString
+		/**
+		 * Uploaded files are copied from {path}
+		 */
+		DB_COPY_DATA_DIR: (arg: { path: unknown }) => LocalizedString
+		/**
+		 * {path} is not readable from this server — uploaded files will be missing
+		 */
+		DB_COPY_DATA_DIR_UNREADABLE: (arg: { path: unknown }) => LocalizedString
+		/**
+		 * Every source table is dropped and recreated in {database}. Anything only in this database is lost.
+		 */
+		DB_COPY_WARNING: (arg: { database: unknown }) => LocalizedString
+		/**
+		 * Preview
+		 */
+		DB_COPY_PREVIEW: () => LocalizedString
+		/**
+		 * Copy now
+		 */
+		DB_COPY_RUN: () => LocalizedString
+		/**
+		 * Copying…
+		 */
+		DB_COPY_RUNNING: () => LocalizedString
+		/**
+		 * Show tables
+		 */
+		DB_COPY_SHOW_TABLES: () => LocalizedString
+		/**
+		 * Hide tables
+		 */
+		DB_COPY_HIDE_TABLES: () => LocalizedString
+		/**
+		 * {rows} row{{s}}
+		 */
+		DB_COPY_TABLE_ROWS: (arg: { rows: number }) => LocalizedString
+		/**
+		 * structure only
+		 */
+		DB_COPY_TABLE_STRUCTURE: () => LocalizedString
+		/**
+		 * excluded
+		 */
+		DB_COPY_TABLE_EXCLUDED: () => LocalizedString
+		/**
+		 * Would copy {tables} table{{s}} and {rows} row{{s}}. Nothing was written.
+		 */
+		DB_COPY_DRY_RUN_RESULT: (arg: { rows: number, tables: number }) => LocalizedString
+		/**
+		 * Copied {tables} table{{s}} and {rows} row{{s}} in {seconds}s.
+		 */
+		DB_COPY_RESULT: (arg: { rows: number, seconds: unknown, tables: number }) => LocalizedString
+		/**
+		 * {rows} row{{s}} had URLs rewritten.
+		 */
+		DB_COPY_REWRITTEN: (arg: { rows: number }) => LocalizedString
+		/**
+		 * {files} uploaded file{{s}} copied.
+		 */
+		DB_COPY_FILES: (arg: { files: number }) => LocalizedString
+		/**
+		 * The schema came along at v{version} — run any pending migrations below.
+		 */
+		DB_COPY_SCHEMA_HINT: (arg: { version: number }) => LocalizedString
+		/**
+		 * Replace this database?
+		 */
+		DB_COPY_CONFIRM_TITLE: () => LocalizedString
+		/**
+		 * Everything in {target} is replaced with the contents of {source}. This cannot be undone.
+		 */
+		DB_COPY_CONFIRM_BODY: (arg: { source: unknown, target: unknown }) => LocalizedString
+		/**
+		 * The copy endpoint could not be read. Check copy.config.php on this server.
+		 */
+		DB_COPY_UNAVAILABLE: () => LocalizedString
 		/**
 		 * Configuration
 		 */
@@ -7706,6 +8900,10 @@ export type TranslationFunctions = {
 		 * An order with this name already exists!
 		 */
 		ORDER_EXISTS: () => LocalizedString
+		/**
+		 * Suggestions come from your bands — the ones playing the open show are offered first.
+		 */
+		ORDER_NAME_BAND_HINT: () => LocalizedString
 		/**
 		 * Delete Order
 		 */
@@ -9284,6 +10482,532 @@ export type TranslationFunctions = {
 		 * Click a screen to place this window on it. Fine-tune the exact size and position below.
 		 */
 		SCREEN_PICKER_HINT: () => LocalizedString
+		/**
+		 * closed
+		 */
+		CLOSED: () => LocalizedString
+		/**
+		 * Delete Window
+		 */
+		DELETE: () => LocalizedString
+		/**
+		 * Delete “{name}”? Its configuration is removed for good — closing the window instead keeps it for next time.
+		 */
+		DELETE_CONFIRM: (arg: { name: string }) => LocalizedString
+		/**
+		 * Drag a window onto another screen to move it. Double-click a screen to add a window filling it.
+		 */
+		DESK_HINT: () => LocalizedString
+		/**
+		 * Windows
+		 */
+		CONFIGURED: () => LocalizedString
+		/**
+		 * No windows set up yet
+		 */
+		NONE_CONFIGURED: () => LocalizedString
+		/**
+		 * Double-click a screen above, or use Add Window.
+		 */
+		NONE_CONFIGURED_HINT: () => LocalizedString
+		/**
+		 * Select a window to edit it.
+		 */
+		SELECT_HINT: () => LocalizedString
+		/**
+		 * Not saved
+		 */
+		UNMANAGED: () => LocalizedString
+		/**
+		 * This window was opened outside the list, so it will not come back after a restart.
+		 */
+		UNMANAGED_HINT: () => LocalizedString
+		/**
+		 * New Window
+		 */
+		NEW: () => LocalizedString
+		/**
+		 * Placement
+		 */
+		TAB_PLACEMENT: () => LocalizedString
+		/**
+		 * Content
+		 */
+		TAB_CONTENT: () => LocalizedString
+		/**
+		 * Stage
+		 */
+		TAB_STAGE: () => LocalizedString
+		/**
+		 * Options
+		 */
+		OPTIONS: () => LocalizedString
+		/**
+		 * All languages
+		 */
+		LANGUAGES_ALL: () => LocalizedString
+		/**
+		 * Leave empty to let the style decide which languages this window shows.
+		 */
+		LANGUAGES_HINT: () => LocalizedString
+		/**
+		 * Stage layers on this window
+		 */
+		STAGE_LAYERS: () => LocalizedString
+		/**
+		 * No stage layers exist yet.
+		 */
+		STAGE_LAYERS_NONE: () => LocalizedString
+		/**
+		 * Pick which stage layers appear on this window. Nothing is shown until one is selected.
+		 */
+		STAGE_LAYERS_HINT: () => LocalizedString
+		/**
+		 * Quick actions
+		 */
+		QUICK_ACTIONS: () => LocalizedString
+		/**
+		 * All settings…
+		 */
+		MORE_SETTINGS: () => LocalizedString
+	}
+	STAGE: {
+		/**
+		 * Stage Monitor
+		 */
+		PANEL_TITLE: () => LocalizedString
+		/**
+		 * Stage monitor
+		 */
+		OPEN_PANEL: () => LocalizedString
+		/**
+		 * Layers
+		 */
+		LAYERS: () => LocalizedString
+		/**
+		 * Layer
+		 */
+		LAYER: () => LocalizedString
+		/**
+		 * Add Layer
+		 */
+		ADD_LAYER: () => LocalizedString
+		/**
+		 * Layer name
+		 */
+		LAYER_NAME: () => LocalizedString
+		/**
+		 * Stage layer
+		 */
+		NEW_LAYER_NAME: () => LocalizedString
+		/**
+		 * No stage layers yet
+		 */
+		NO_LAYERS: () => LocalizedString
+		/**
+		 * A layer is a place on the screen — a clock top right, a countdown bottom centre — with its own list of cues.
+		 */
+		NO_LAYERS_HINT: () => LocalizedString
+		/**
+		 * Delete layer
+		 */
+		DELETE_LAYER: () => LocalizedString
+		/**
+		 * Delete the layer “{name}” and all its cues?
+		 */
+		DELETE_LAYER_CONFIRM: (arg: { name: string }) => LocalizedString
+		/**
+		 * Enabled
+		 */
+		ENABLED: () => LocalizedString
+		/**
+		 * Shown on {count} window{{s}}
+		 */
+		ASSIGNED_TO: (arg: { count: number }) => LocalizedString
+		/**
+		 * Not assigned to any window
+		 */
+		ASSIGNED_TO_NONE: () => LocalizedString
+		/**
+		 * Cues
+		 */
+		CUES: () => LocalizedString
+		/**
+		 * Add cue
+		 */
+		ADD_CUE: () => LocalizedString
+		/**
+		 * No cues yet — add one to give this layer something to show.
+		 */
+		NO_CUES: () => LocalizedString
+		/**
+		 * Cue name
+		 */
+		CUE_NAME: () => LocalizedString
+		/**
+		 * Clock
+		 */
+		CUE_CLOCK: () => LocalizedString
+		/**
+		 * Countdown
+		 */
+		CUE_COUNTDOWN: () => LocalizedString
+		/**
+		 * Count up
+		 */
+		CUE_COUNTUP: () => LocalizedString
+		/**
+		 * Message
+		 */
+		CUE_MESSAGE: () => LocalizedString
+		/**
+		 * Blank
+		 */
+		CUE_BLANK: () => LocalizedString
+		/**
+		 * On screen
+		 */
+		CUE_ACTIVE: () => LocalizedString
+		/**
+		 * Cue {index} of {total}
+		 */
+		CUE_OF: (arg: { index: number, total: number }) => LocalizedString
+		/**
+		 * Finished
+		 */
+		FINISHED: () => LocalizedString
+		/**
+		 * Go
+		 */
+		GO: () => LocalizedString
+		/**
+		 * Back
+		 */
+		BACK: () => LocalizedString
+		/**
+		 * Skip
+		 */
+		SKIP: () => LocalizedString
+		/**
+		 * Pause
+		 */
+		PAUSE: () => LocalizedString
+		/**
+		 * Resume
+		 */
+		RESUME: () => LocalizedString
+		/**
+		 * Restart cue
+		 */
+		RESET: () => LocalizedString
+		/**
+		 * Back to first cue
+		 */
+		RESET_ALL: () => LocalizedString
+		/**
+		 * Start
+		 */
+		START: () => LocalizedString
+		/**
+		 * Hide layer
+		 */
+		HIDE: () => LocalizedString
+		/**
+		 * Show layer
+		 */
+		SHOW: () => LocalizedString
+		/**
+		 * Hide all stage overlays
+		 */
+		HIDE_ALL: () => LocalizedString
+		/**
+		 * Show stage overlays
+		 */
+		SHOW_ALL: () => LocalizedString
+		/**
+		 * Placement
+		 */
+		PLACEMENT: () => LocalizedString
+		/**
+		 * Position
+		 */
+		POSITION: () => LocalizedString
+		/**
+		 * Width
+		 */
+		WIDTH: () => LocalizedString
+		/**
+		 * Margin
+		 */
+		MARGIN: () => LocalizedString
+		/**
+		 * Appearance
+		 */
+		APPEARANCE: () => LocalizedString
+		/**
+		 * Font
+		 */
+		FONT: () => LocalizedString
+		/**
+		 * Size
+		 */
+		FONT_SIZE: () => LocalizedString
+		/**
+		 * Colour
+		 */
+		COLOR: () => LocalizedString
+		/**
+		 * Bold
+		 */
+		BOLD: () => LocalizedString
+		/**
+		 * Panel
+		 */
+		BACKGROUND: () => LocalizedString
+		/**
+		 * Panel opacity
+		 */
+		BACKGROUND_OPACITY: () => LocalizedString
+		/**
+		 * Align
+		 */
+		TEXT_ALIGN: () => LocalizedString
+		/**
+		 * Warning colour
+		 */
+		WARN_COLOR: () => LocalizedString
+		/**
+		 * Final colour
+		 */
+		DANGER_COLOR: () => LocalizedString
+		/**
+		 * Preview
+		 */
+		PREVIEW: () => LocalizedString
+		/**
+		 * Format
+		 */
+		FORMAT: () => LocalizedString
+		/**
+		 * Show seconds
+		 */
+		SHOW_SECONDS: () => LocalizedString
+		/**
+		 * 24-hour (13:45)
+		 */
+		PRESET_TIME24: () => LocalizedString
+		/**
+		 * 12-hour (1:45 PM)
+		 */
+		PRESET_TIME12: () => LocalizedString
+		/**
+		 * Date and time
+		 */
+		PRESET_DATE_TIME: () => LocalizedString
+		/**
+		 * Weekday and time
+		 */
+		PRESET_WEEKDAY_TIME: () => LocalizedString
+		/**
+		 * Custom…
+		 */
+		PRESET_CUSTOM: () => LocalizedString
+		/**
+		 * Automatic (4:32, 1:04:32)
+		 */
+		DURATION_AUTO: () => LocalizedString
+		/**
+		 * Minutes and seconds (04:32)
+		 */
+		DURATION_MMSS: () => LocalizedString
+		/**
+		 * Hours, minutes, seconds (00:04:32)
+		 */
+		DURATION_HMMSS: () => LocalizedString
+		/**
+		 * Pattern
+		 */
+		CUSTOM_PATTERN: () => LocalizedString
+		/**
+		 * Uses the standard date pattern letters. Case matters.
+		 */
+		PATTERN_HELP: () => LocalizedString
+		/**
+		 * Shows as
+		 */
+		PATTERN_PREVIEW: () => LocalizedString
+		/**
+		 * Pattern letters
+		 */
+		TOKEN_REFERENCE: () => LocalizedString
+		/**
+		 * Hour (0–23)
+		 */
+		TOKEN_HOUR24: () => LocalizedString
+		/**
+		 * Hour (1–12)
+		 */
+		TOKEN_HOUR12: () => LocalizedString
+		/**
+		 * Minute
+		 */
+		TOKEN_MINUTE: () => LocalizedString
+		/**
+		 * Second
+		 */
+		TOKEN_SECOND: () => LocalizedString
+		/**
+		 * AM / PM
+		 */
+		TOKEN_DAY_PERIOD: () => LocalizedString
+		/**
+		 * Day of month
+		 */
+		TOKEN_DAY: () => LocalizedString
+		/**
+		 * Month
+		 */
+		TOKEN_MONTH: () => LocalizedString
+		/**
+		 * Year
+		 */
+		TOKEN_YEAR: () => LocalizedString
+		/**
+		 * Weekday
+		 */
+		TOKEN_WEEKDAY: () => LocalizedString
+		/**
+		 * Literal text
+		 */
+		TOKEN_LITERAL: () => LocalizedString
+		/**
+		 * MM means months. For minutes use lower-case mm — “HH:mm”.
+		 */
+		WARN_MINUTES_VS_MONTHS: () => LocalizedString
+		/**
+		 * Not a pattern letter: {letters}. It will be shown as typed.
+		 */
+		WARN_UNKNOWN_TOKENS: (arg: { letters: string }) => LocalizedString
+		/**
+		 * This pattern has no time fields, so it will never change.
+		 */
+		WARN_NO_FIELDS: () => LocalizedString
+		/**
+		 * Counts down
+		 */
+		SOURCE: () => LocalizedString
+		/**
+		 * For a length of time
+		 */
+		SOURCE_DURATION: () => LocalizedString
+		/**
+		 * Until a time of day
+		 */
+		SOURCE_TIME_OF_DAY: () => LocalizedString
+		/**
+		 * Length
+		 */
+		DURATION: () => LocalizedString
+		/**
+		 * Target time
+		 */
+		AT_TIME: () => LocalizedString
+		/**
+		 * A time that has already passed today counts down to tomorrow.
+		 */
+		AT_TIME_HINT: () => LocalizedString
+		/**
+		 * Minutes
+		 */
+		MINUTES: () => LocalizedString
+		/**
+		 * Seconds
+		 */
+		SECONDS: () => LocalizedString
+		/**
+		 * At zero
+		 */
+		ON_ZERO: () => LocalizedString
+		/**
+		 * Hold at 0:00
+		 */
+		ON_ZERO_HOLD: () => LocalizedString
+		/**
+		 * Keep counting (overtime)
+		 */
+		ON_ZERO_COUNT_UP: () => LocalizedString
+		/**
+		 * Go to the next cue
+		 */
+		ON_ZERO_NEXT: () => LocalizedString
+		/**
+		 * Hide the layer
+		 */
+		ON_ZERO_HIDE: () => LocalizedString
+		/**
+		 * Warn at
+		 */
+		WARN_AT: () => LocalizedString
+		/**
+		 * Final warning at
+		 */
+		DANGER_AT: () => LocalizedString
+		/**
+		 * Caption
+		 */
+		LABEL: () => LocalizedString
+		/**
+		 * Small text above the digits.
+		 */
+		LABEL_HINT: () => LocalizedString
+		/**
+		 * Text
+		 */
+		TEXT: () => LocalizedString
+		/**
+		 * Move on automatically after
+		 */
+		AUTO_NEXT: () => LocalizedString
+		/**
+		 * Never — wait for Go
+		 */
+		AUTO_NEXT_NEVER: () => LocalizedString
+		/**
+		 * Stage cues
+		 */
+		TRIGGERS: () => LocalizedString
+		/**
+		 * No stage cues on this item
+		 */
+		TRIGGERS_NONE: () => LocalizedString
+		/**
+		 * Fire a stage cue here
+		 */
+		TRIGGER_ADD: () => LocalizedString
+		/**
+		 * Runs when this item goes live. Loading the show does not fire it.
+		 */
+		TRIGGER_HINT: () => LocalizedString
+		/**
+		 * Start
+		 */
+		TRIGGER_START: () => LocalizedString
+		/**
+		 * Next cue
+		 */
+		TRIGGER_NEXT: () => LocalizedString
+		/**
+		 * Back to first cue
+		 */
+		TRIGGER_RESET: () => LocalizedString
+		/**
+		 * Hide
+		 */
+		TRIGGER_HIDE: () => LocalizedString
+		/**
+		 * Show
+		 */
+		TRIGGER_SHOW: () => LocalizedString
 	}
 	HEADER: {
 		/**
@@ -10006,6 +11730,10 @@ export type TranslationFunctions = {
 		}
 		SECTIONS: {
 			/**
+			 * Monitor mixing
+			 */
+			AUDIO_MIXER: () => LocalizedString
+			/**
 			 * Appearance
 			 */
 			APPEARANCE: () => LocalizedString
@@ -10013,6 +11741,10 @@ export type TranslationFunctions = {
 			 * Account defaults
 			 */
 			ACCOUNT_DEFAULTS: () => LocalizedString
+			/**
+			 * Bands
+			 */
+			BANDS: () => LocalizedString
 			/**
 			 * Connection
 			 */
@@ -10136,6 +11868,10 @@ export type TranslationFunctions = {
 		 * Command reference and connection details for StreamDeck, Bitfocus Companion and custom scripts.
 		 */
 		COMPANION_DESC: () => LocalizedString
+		/**
+		 * Let musicians mix their own monitors from their phone, through the audio bridge on this machine.
+		 */
+		AUDIO_MIXER_DESC: () => LocalizedString
 		/**
 		 * Save every setting on this device to a JSON file, or apply one from another device. Imports are reviewed before anything changes.
 		 */
@@ -11601,6 +13337,10 @@ export type TranslationFunctions = {
 		 */
 		MANAGE_PDFS: () => LocalizedString
 		/**
+		 * Mixer as a bottom panel
+		 */
+		MIXER_COMPACT: () => LocalizedString
+		/**
 		 * Show Footer
 		 */
 		SHOW_FOOTER: () => LocalizedString
@@ -12217,6 +13957,68 @@ export type TranslationFunctions = {
 		 */
 		FOLLOW_MIDI_ACTIVE: () => LocalizedString
 	}
+	BANDS: {
+		/**
+		 * Bands
+		 */
+		TITLE: () => LocalizedString
+		/**
+		 * The bands that play your shows. A band can be assigned to shows and set lists, and its name and members are offered wherever one is asked for.
+		 */
+		SECTION_HINT: () => LocalizedString
+		/**
+		 * Members
+		 */
+		MEMBERS: () => LocalizedString
+		/**
+		 * Add a musician
+		 */
+		MEMBERS_PLACEHOLDER: () => LocalizedString
+		/**
+		 * Name a new band
+		 */
+		NEW_PLACEHOLDER: () => LocalizedString
+		/**
+		 * Band colour
+		 */
+		COLOR: () => LocalizedString
+		/**
+		 * Move band up
+		 */
+		MOVE_UP: () => LocalizedString
+		/**
+		 * Move band down
+		 */
+		MOVE_DOWN: () => LocalizedString
+		/**
+		 * Delete band
+		 */
+		DELETE: () => LocalizedString
+		/**
+		 * Delete the band "{name}"? Shows and set lists keep everything else — they just lose the assignment.
+		 */
+		DELETE_CONFIRM: (arg: { name: unknown }) => LocalizedString
+		/**
+		 * No bands yet. Add one in Settings → General → Bands.
+		 */
+		NONE_YET: () => LocalizedString
+		/**
+		 * Bands live on the account, so they cannot be edited in offline mode.
+		 */
+		OFFLINE: () => LocalizedString
+		/**
+		 * The band could not be created.
+		 */
+		CREATE_FAILED: () => LocalizedString
+		/**
+		 * Bands
+		 */
+		ASSIGN_LABEL: () => LocalizedString
+		/**
+		 * Pick one or more
+		 */
+		ASSIGN_PLACEHOLDER: () => LocalizedString
+	}
 	SET_LISTS: {
 		/**
 		 * Set Lists
@@ -12331,6 +14133,22 @@ export type TranslationFunctions = {
 		 */
 		EDIT_TAGS: () => LocalizedString
 		/**
+		 * Star — add to my list
+		 */
+		FAVORITE: () => LocalizedString
+		/**
+		 * Remove from my list
+		 */
+		UNFAVORITE: () => LocalizedString
+		/**
+		 * Show only my starred songs
+		 */
+		FAVORITES_ONLY: () => LocalizedString
+		/**
+		 * Showing my starred songs — show all again
+		 */
+		FAVORITES_SHOW_ALL: () => LocalizedString
+		/**
 		 * Remove
 		 */
 		REMOVE: () => LocalizedString
@@ -12362,6 +14180,10 @@ export type TranslationFunctions = {
 		 * No songs in this set list match "{query}".
 		 */
 		EMPTY_FILTER: (arg: { query: unknown }) => LocalizedString
+		/**
+		 * Nothing starred in this set list yet. Star a song to keep it on your personal list.
+		 */
+		EMPTY_FAVORITES: () => LocalizedString
 		/**
 		 * No songs in the library match "{query}".
 		 */
@@ -12488,6 +14310,46 @@ export type TranslationFunctions = {
 		 * Black screen
 		 */
 		CMD_TOGGLE_BLACK: () => LocalizedString
+		/**
+		 * Command ignored — show version differs
+		 */
+		SYNC_STALE_TITLE: () => LocalizedString
+		/**
+		 * A connected device is running a different version of the show, so its position cannot be applied here. Reload the show to sync up again.
+		 */
+		SYNC_STALE_MUSICIAN: () => LocalizedString
+		/**
+		 * A connected device is running a different version of the show ({song}), so its commands are being ignored. Reload the show on that device, or here.
+		 */
+		SYNC_STALE_OPERATOR: (arg: { song: unknown }) => LocalizedString
+		/**
+		 * A connected device is running a different version of the show, so its commands are being ignored. Reload the show on that device, or here.
+		 */
+		SYNC_STALE_OPERATOR_NO_SONG: () => LocalizedString
+		/**
+		 * Reload show
+		 */
+		SYNC_RELOAD: () => LocalizedString
+		/**
+		 * Drive the show from this device
+		 */
+		AUTHORITY_TITLE: () => LocalizedString
+		/**
+		 * Only the device driving the show sends its position to musicians and reacts to their remote commands. "Automatic" means this device drives while it has a presentation window open — keep it unless a second copy of the app has to take over.
+		 */
+		AUTHORITY_HINT: () => LocalizedString
+		/**
+		 * Automatic
+		 */
+		AUTHORITY_AUTO: () => LocalizedString
+		/**
+		 * Always
+		 */
+		AUTHORITY_ALWAYS: () => LocalizedString
+		/**
+		 * Never
+		 */
+		AUTHORITY_NEVER: () => LocalizedString
 	}
 	CONNECTIVITY: {
 		/**
@@ -12498,6 +14360,10 @@ export type TranslationFunctions = {
 		 * The backend server could not be reached. You can change the backend URL or try again later.
 		 */
 		MESSAGE: () => LocalizedString
+		/**
+		 * The backend server could not be reached. Check your network connection or try again later.
+		 */
+		MESSAGE_WEB: () => LocalizedString
 		/**
 		 * Test
 		 */
@@ -12580,6 +14446,222 @@ export type TranslationFunctions = {
 		 * An error occurred during the update process.
 		 */
 		ERROR: () => LocalizedString
+	}
+	AUDIO_MIXER: {
+		/**
+		 * Offer monitor mixing to musicians
+		 */
+		ENABLED: () => LocalizedString
+		/**
+		 * Bridge host
+		 */
+		HOST: () => LocalizedString
+		/**
+		 * The machine running Streamer, on this network. Leave as localhost when Streamer runs here.
+		 */
+		HOST_DESC: () => LocalizedString
+		/**
+		 * Port
+		 */
+		PORT: () => LocalizedString
+		/**
+		 * Shared secret
+		 */
+		SECRET: () => LocalizedString
+		/**
+		 * Only when the bridge is configured to require one. Leave empty otherwise.
+		 */
+		SECRET_DESC: () => LocalizedString
+		/**
+		 * Switched off. Musicians are told there is no mixer.
+		 */
+		STATUS_OFF: () => LocalizedString
+		/**
+		 * Connecting to the audio bridge...
+		 */
+		STATUS_CONNECTING: () => LocalizedString
+		/**
+		 * Connected to {model} (firmware {firmware}).
+		 */
+		STATUS_CONNECTED: (arg: { firmware: string, model: string }) => LocalizedString
+		/**
+		 * The bridge is reachable, but no mixing desk has answered it yet.
+		 */
+		STATUS_NO_DESK: () => LocalizedString
+		/**
+		 * The audio bridge is not answering. Check that Streamer is running and its bridge is switched on.
+		 */
+		STATUS_OFFLINE: () => LocalizedString
+		/**
+		 * The bridge speaks a protocol version this app does not know. Update one of the two.
+		 */
+		STATUS_SCHEMA: () => LocalizedString
+		/**
+		 * The bridge refused the shared secret.
+		 */
+		STATUS_SECRET: () => LocalizedString
+		/**
+		 * {count} mixing now
+		 */
+		SUBSCRIBERS: (arg: { count: number }) => LocalizedString
+		/**
+		 * Mixes musicians may use
+		 */
+		BUSES: () => LocalizedString
+		/**
+		 * Only the buses you pick are offered. A desk usually publishes more than are monitor mixes - an X32 lists its FX buses here too.
+		 */
+		BUSES_DESC: () => LocalizedString
+		/**
+		 * Connect to the bridge to see the buses this desk has.
+		 */
+		NO_BUSES: () => LocalizedString
+		/**
+		 * What musicians may do
+		 */
+		PERMISSIONS: () => LocalizedString
+		/**
+		 * Show the main mix
+		 */
+		ALLOW_MAIN: () => LocalizedString
+		/**
+		 * The main mix is front of house: its channel faders are the ones the room hears.
+		 */
+		ALLOW_MAIN_DESC: () => LocalizedString
+		/**
+		 * Allow muting the main
+		 */
+		ALLOW_MAIN_MUTE: () => LocalizedString
+		/**
+		 * This one silences the room. Off unless somebody at a desk needs it.
+		 */
+		ALLOW_MAIN_MUTE_DESC: () => LocalizedString
+		/**
+		 * Allow muting their own mix
+		 */
+		ALLOW_MIX_MUTE: () => LocalizedString
+		/**
+		 * Mutes the bus master - that one wedge or in-ear feed, nobody else.
+		 */
+		ALLOW_MIX_MUTE_DESC: () => LocalizedString
+		/**
+		 * Allow muting a channel everywhere
+		 */
+		ALLOW_STRIP_MUTES: () => LocalizedString
+		/**
+		 * Takes a channel out of every mix and the main at once. Useful to whoever is plugging cables in, and a loaded gun in other hands. Each device has to switch it on as well.
+		 */
+		ALLOW_STRIP_MUTES_DESC: () => LocalizedString
+		/**
+		 * Allow mute groups
+		 */
+		ALLOW_MUTE_GROUPS: () => LocalizedString
+		/**
+		 * Mute groups affect everybody at once, not just the musician pressing the button.
+		 */
+		ALLOW_MUTE_GROUPS_DESC: () => LocalizedString
+		/**
+		 * Send level meters
+		 */
+		ALLOW_METERS: () => LocalizedString
+		/**
+		 * Ten readings a second per device. Switch off on a slow or busy network.
+		 */
+		ALLOW_METERS_DESC: () => LocalizedString
+	}
+	MIXER: {
+		/**
+		 * Monitor mix
+		 */
+		TITLE: () => LocalizedString
+		/**
+		 * Close mixer
+		 */
+		CLOSE: () => LocalizedString
+		/**
+		 * Mute
+		 */
+		MUTE: () => LocalizedString
+		/**
+		 * Mute Main
+		 */
+		MUTE_MAIN: () => LocalizedString
+		/**
+		 * The desk's own channel mute. It takes this channel out of the main mix, and out of any send that follows the fader.
+		 */
+		MUTE_MAIN_HINT: () => LocalizedString
+		/**
+		 * Channels shown
+		 */
+		VISIBLE_STRIPS: () => LocalizedString
+		/**
+		 * Applies to {mix} on this device only.
+		 */
+		VISIBLE_STRIPS_HINT: (arg: { mix: string }) => LocalizedString
+		/**
+		 * Show all
+		 */
+		SHOW_ALL: () => LocalizedString
+		/**
+		 * Hide all
+		 */
+		HIDE_ALL: () => LocalizedString
+		/**
+		 * Done
+		 */
+		DONE: () => LocalizedString
+		/**
+		 * Level meters
+		 */
+		SHOW_METERS: () => LocalizedString
+		/**
+		 * Main mute buttons
+		 */
+		SHOW_STRIP_MUTES: () => LocalizedString
+		/**
+		 * Main mute below the strip
+		 */
+		MAIN_MUTE_AT_BOTTOM: () => LocalizedString
+		/**
+		 * No channels are shown on this mix.
+		 */
+		NO_STRIPS: () => LocalizedString
+		/**
+		 * Connecting to the mixing desk...
+		 */
+		STATE_CONNECTING: () => LocalizedString
+		/**
+		 * The mixing desk is not responding. Controls will come back when it does.
+		 */
+		STATE_DESK_DOWN: () => LocalizedString
+		/**
+		 * Full screen
+		 */
+		EXPAND: () => LocalizedString
+		/**
+		 * Back to the panel
+		 */
+		COLLAPSE: () => LocalizedString
+		/**
+		 * Drag to resize the panel
+		 */
+		RESIZE: () => LocalizedString
+		/**
+		 * That's me
+		 */
+		MINE: () => LocalizedString
+		/**
+		 * Mark your own channels to find them at a glance.
+		 */
+		MINE_HINT: () => LocalizedString
+		/**
+		 * Signal
+		 */
+		TAP_SIGNAL: () => LocalizedString
+		/**
+		 * Output
+		 */
+		TAP_OUTPUT: () => LocalizedString
 	}
 }
 

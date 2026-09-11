@@ -268,6 +268,75 @@ CREATE TABLE `set_list_entry_tags` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
+-- Stage Monitor Layers
+--
+-- A layer is a placed band on the presentation output holding an ordered list of cues
+-- (clock / countdown / count-up / message). Cues live in `data` rather than a table of
+-- their own: nothing queries an individual cue, the editor loads and saves whole layers.
+-- --------------------------------------------------------
+CREATE TABLE `stage_layers` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `account` INT NOT NULL,
+  `name` VARCHAR(200) NOT NULL,
+  `enabled` TINYINT(1) DEFAULT 1,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  `data` JSON NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_stage_layers_account_name` (`account`, `name`),
+  CONSTRAINT `fk_stage_layers_account` FOREIGN KEY (`account`)
+    REFERENCES `account` (`license`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+-- Bands
+--
+-- A band is the group of people that plays a show: a name, a colour for its chips, and
+-- the musicians on it. The members are a JSON list rather than a table of their own —
+-- nothing ever joins on a single member; they exist to be offered as suggestions on the
+-- musician page and wherever an order is named after the band that plays it.
+-- --------------------------------------------------------
+CREATE TABLE `bands` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `account` INT NOT NULL,
+  `name` VARCHAR(200) NOT NULL,
+  `color` VARCHAR(20) DEFAULT NULL,
+  `members` JSON DEFAULT NULL,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_bands_account_name` (`account`, `name`),
+  CONSTRAINT `fk_bands_account` FOREIGN KEY (`account`)
+    REFERENCES `account` (`license`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Band assignments. A show or a set list can name several bands (two bands sharing a
+-- service, a list a whole team works from), so this is a join table rather than a column.
+-- Deleting a band drops its assignments and leaves the shows themselves alone.
+CREATE TABLE `show_bands` (
+  `account` INT NOT NULL,
+  `show_title` VARCHAR(200) NOT NULL,
+  `band_id` INT NOT NULL,
+  PRIMARY KEY (`account`, `show_title`, `band_id`),
+  KEY `idx_show_bands_band` (`band_id`),
+  CONSTRAINT `fk_show_bands_show` FOREIGN KEY (`account`, `show_title`)
+    REFERENCES `shows` (`account`, `title`) ON DELETE CASCADE,
+  CONSTRAINT `fk_show_bands_band` FOREIGN KEY (`band_id`)
+    REFERENCES `bands` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `set_list_bands` (
+  `set_list_id` INT NOT NULL,
+  `band_id` INT NOT NULL,
+  PRIMARY KEY (`set_list_id`, `band_id`),
+  KEY `idx_set_list_bands_band` (`band_id`),
+  CONSTRAINT `fk_slb_set_list` FOREIGN KEY (`set_list_id`)
+    REFERENCES `set_lists` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_slb_band` FOREIGN KEY (`band_id`)
+    REFERENCES `bands` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
 -- Schema Version Tracking (for migrations)
 -- --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `schema_version` (
@@ -277,7 +346,7 @@ CREATE TABLE IF NOT EXISTS `schema_version` (
   PRIMARY KEY (`version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-INSERT INTO `schema_version` (`version`, `description`) VALUES (19, 'Fresh install — all migrations included');
+INSERT INTO `schema_version` (`version`, `description`) VALUES (23, 'Fresh install — all migrations included');
 
 COMMIT;
 

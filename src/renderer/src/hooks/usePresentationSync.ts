@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppSelector, useAppDispatch } from '@/store';
 import { selectCurrentSongOrder, useGetSongs } from '@/store/songsSlice';
-import { broadcastContent, invalidateSentContentCache, setWindowStyleResolver } from '@/utils/presentationBridge';
+import { broadcastContent, getOpenWindowsSync, invalidateSentContentCache, setWindowStyleResolver } from '@/utils/presentationBridge';
 import { SONG_TRANSLATION_LINE_REGEX, inferSongLanguages, resolvePrimaryLanguage } from '@/song';
 import type { ContentType, PresentationBlock, PresentationContent, PresentationLine } from '@/presentation/types';
 import { DEFAULT_STYLE, mergeStyles, type ResolvedStyle, resolveStyleCascade, resolveStyleData } from '@/utils/styleUtils';
@@ -9,7 +9,7 @@ import { useGetStylesQuery } from '@/api/styles.api';
 import { resolveMediaUrl } from '@/utils/mediaUrl';
 import { useUpdateSetting, useGetSettings } from '@/store/settingsSlice';
 import { useGetMusicianSettings } from '@/store/musicianSlice';
-import { useGetWindows, useUpdateWindows, WindowConfig } from '@/store/windowSlice';
+import { configIdForRuntimeId, upsertWindowConfig, useGetWindows, WindowConfig } from '@/store/windowSlice';
 import { useGetPresentationSettings } from '@/store/presentationSlice';
 import {
   setActiveItemIndex,
@@ -29,6 +29,8 @@ import { useGetShow } from '@/store/showSlice';
 import { useI18nContext } from '@/i18n/i18n-react';
 import { useGetSessionQuery } from '@/api/session.api';
 import { useWsOperator, type WsOperatorIncomingSync } from '@/hooks/useWsOperator';
+import { useAudioMixerHost } from '@/hooks/useAudioMixerHost';
+import { resolveSyncIndex, showOrderSignature } from '@/utils/syncProtocol';
 
 /**
  * Parse song block lines to extract language tags.
@@ -68,6 +70,8 @@ export const usePresentationSync = (): void => {
     hideTransitionMode,
     hideTransitionDuration,
     videoFadeDuration,
+    operatorSyncAuthority,
+    deviceId,
   } = useGetSettings();
   const { midiTrackingMaster } = useGetMusicianSettings();
 
@@ -78,7 +82,6 @@ export const usePresentationSync = (): void => {
   const { windowConfigs } = useGetWindows();
   const { currentShow } = useGetShow();
   const { songs } = useGetSongs();
-  const updateWindowSetting = useUpdateWindows();
 
   // Session — needed for the account number and WS host used in WS auth
   const { data: sessionData } = useGetSessionQuery(undefined, { skip: offlineMode });
@@ -97,6 +100,35 @@ export const usePresentationSync = (): void => {
     return '';
   }, [sessionData?.settings?.wsHost]);
 
+  /**
+   * Is THIS app instance the one actually driving the show?
+   *
+   * Only a live operator broadcasts its position, answers `get_state` and acts on remote
+   * commands. Everything else is a passive listener. Without the distinction every open
+   * copy of the app — a second laptop, a phone left on the page — answered on the show's
+   * behalf, and because those instances sit on whatever position they were opened at, the
+   * last one to answer won: the projection snapped back to their item.
+   *
+   * `auto` reads it off the only fact that actually settles it: an instance with no
+   * presentation window open is not presenting anything. `always`/`never` let the operator
+   * override for setups the heuristic gets wrong.
+   */
+  const syncAuthorityRef = useRef(operatorSyncAuthority);
+  syncAuthorityRef.current = operatorSyncAuthority;
+  const isLiveOperator = useCallback(() => {
+    const mode = syncAuthorityRef.current;
+    if (mode === 'always') return true;
+    if (mode === 'never') return false;
+    return getOpenWindowsSync().some((w) => !w.closed);
+  }, []);
+
+  /** Fingerprint of the show we are holding — see `resolveSyncIndex`. */
+  const showSigRef = useRef<string | undefined>(undefined);
+  showSigRef.current = showOrderSignature(currentShow);
+  /** Items of our show, for resolving a peer's index by song when the orders differ. */
+  const showItemsRef = useRef<Array<{ type?: string; songNumber?: number }>>([]);
+  showItemsRef.current = (currentShow?.order ?? []) as Array<{ type?: string; songNumber?: number }>;
+
   // Called when a musician broadcasts their position — only applied when
   // midiTrackingMaster === 'midi' (operator follows the MIDI musician).
   const handleMusicianSync = useCallback(
@@ -104,14 +136,38 @@ export const usePresentationSync = (): void => {
       if (midiTrackingMasterRef.current !== 'midi') return;
       const hasItem = typeof state.activeItemIndex === 'number';
       const hasBlock = typeof state.activeBlockIndex === 'number';
+
+      // The protocol addresses items by index, so an index only means something between
+      // two clients holding the same show order. When the show is edited mid-service the
+      // peers that have not reloaded are one item off — following them lands on the wrong
+      // song. Fall back to the song number they sent, and refuse rather than jump blind.
+      const match = resolveSyncIndex({
+        theirSig: state.showSig,
+        ourSig: showSigRef.current,
+        theirItemIndex: state.activeItemIndex,
+        theirSongNumber: state.songNumber,
+        ourItems: showItemsRef.current,
+      });
+      if (match.kind === 'stale') {
+        // Silently dropping it would leave the footswitch looking broken, so tell the UI:
+        // one side has to reload before indices mean the same thing again.
+        window.dispatchEvent(
+          new CustomEvent('presenter:sync-show-mismatch', {
+            detail: { songTitle: state.songTitle, songNumber: state.songNumber, at: Date.now() },
+          }),
+        );
+        return;
+      }
+      const itemIndex = match.kind === 'resolved' ? match.itemIndex : state.activeItemIndex;
+
       // Clamp against OUR order — the musician's show may be longer when this app missed a
       // reload; an out-of-range index would land the presentation on nothing at all.
       // (Block indices are intentionally not clamped: >= blocks.length means "copyright".)
       const clampItem = (idx: number) => Math.max(0, Math.min(idx, Math.max(0, remoteCtxRef.current.showItemCount - 1)));
       if (hasItem && hasBlock) {
-        dispatch(setActiveItemAndBlock({ itemIndex: clampItem(state.activeItemIndex!), blockIndex: state.activeBlockIndex! }));
+        dispatch(setActiveItemAndBlock({ itemIndex: clampItem(itemIndex!), blockIndex: state.activeBlockIndex! }));
       } else if (hasItem) {
-        dispatch(setActiveItemIndex(clampItem(state.activeItemIndex!)));
+        dispatch(setActiveItemIndex(clampItem(itemIndex!)));
       } else if (hasBlock) {
         dispatch(setActiveBlockIndex(state.activeBlockIndex!));
       }
@@ -123,10 +179,15 @@ export const usePresentationSync = (): void => {
   // even if nothing in the presentation has changed.
   const [forceBroadcastCount, setForceBroadcastCount] = useState(0);
   const handleGetState = useCallback(() => {
+    // Only the instance actually presenting answers. Every open copy of the app used to
+    // reply to this, and a musician connecting or resyncing was enough to make the passive
+    // ones publish their stale position — which then also became the relay's cached state
+    // for the next client to connect.
+    if (!isLiveOperator()) return;
     // Reset the dedup key so the next effect run always sends the current state.
     lastKeyRef.current = '';
     setForceBroadcastCount((c) => c + 1);
-  }, []);
+  }, [isLiveOperator]);
 
   // Listen for a custom DOM event dispatched by Footer (or other renderers) after
   // presentation windows are opened/restored, so they get content immediately.
@@ -183,6 +244,11 @@ export const usePresentationSync = (): void => {
 
   const handleRemoteCommand = useCallback(
     (data: Record<string, unknown>) => {
+      // A passive instance must not act on this. Acting flips its own black/item state,
+      // which in turn fires the broadcast effect below — that is how a single footswitch
+      // `toggle_black` used to end with two background instances publishing item 0 and the
+      // live operator dutifully following them back to the first song.
+      if (!isLiveOperator()) return;
       const command = typeof data.command === 'string' ? data.command : '';
       const nav = navStateRef.current;
       const ctx = remoteCtxRef.current;
@@ -262,8 +328,21 @@ export const usePresentationSync = (): void => {
           break;
       }
     },
-    [dispatch],
+    [dispatch, isLiveOperator],
   );
+
+  /**
+   * Monitor mixing rides this same relay socket, which has not been opened yet — so the
+   * host is handed a stable sender that reads the real one out of a ref once it exists.
+   * A second socket would have been simpler and would also have made the operator show up
+   * twice in its own connected-clients breakdown.
+   */
+  const wsBroadcastRef = useRef<(action: string, data?: Record<string, unknown>, to?: string | string[]) => void>(() => {});
+  const sendRelay = useCallback(
+    (action: string, data?: Record<string, unknown>, to?: string | string[]) => wsBroadcastRef.current(action, data, to),
+    [],
+  );
+  const { handleRelayMessage: handleAudioRelayMessage } = useAudioMixerHost({ send: sendRelay });
 
   // Operator WebSocket connection to the relay server
   const {
@@ -273,7 +352,16 @@ export const usePresentationSync = (): void => {
     peers: wsPeers,
     lastMidiSyncAt,
     lastPeersDisconnected,
-  } = useWsOperator(wsUrl, wsAccount, handleMusicianSync, handleGetState, handleRemoteCommand);
+  } = useWsOperator(
+    wsUrl,
+    wsAccount,
+    handleMusicianSync,
+    handleGetState,
+    handleRemoteCommand,
+    midiTrackingMaster === 'midi',
+    handleAudioRelayMessage,
+  );
+  wsBroadcastRef.current = wsBroadcast;
 
   // Relay confirmed a disconnect-peers request — hand the count back to the Footer, which
   // is waiting on it to tell "cleared N clients" from "the relay never answered".
@@ -648,7 +736,18 @@ export const usePresentationSync = (): void => {
                       : 'Media')
               : '';
 
+      // Passive instances stay quiet. Their state is not wrong for them — it is simply not
+      // the show anyone is watching, and publishing it overwrites the relay's cached state
+      // that every newly connecting client is handed.
+      if (!isLiveOperator()) return;
+
       wsBroadcast('musician_sync', {
+        // Who and which show — see `@/utils/syncProtocol`. Receivers use these to ignore a
+        // peer that is not driving, and to tell a genuine index apart from one that means
+        // a different item because the show was edited.
+        senderRole: 'operator' as const,
+        senderId: deviceId,
+        showSig: showSigRef.current,
         activeItemIndex: nav.activeItemIndex,
         activeBlockIndex: nav.activeBlockIndex,
         activeLineIndex: nav.activeLineIndex,
@@ -723,6 +822,9 @@ export const usePresentationSync = (): void => {
     agenda,
     // Peer requested current state — force a re-broadcast even if nothing changed.
     wsBroadcast,
+    // Whether this instance may publish at all, and the id it publishes under.
+    isLiveOperator,
+    deviceId,
   ]);
 
   // ── Register a per-window style resolver so windows with a configured
@@ -789,21 +891,11 @@ export const usePresentationSync = (): void => {
     if (!window.api?.onPresentationWindowBoundsChanged) return;
 
     const cleanup = window.api.onPresentationWindowBoundsChanged(({ id, bounds }) => {
-      const configs = [
-        ...(savedWindowConfigsRef.current as Array<{
-          _runtimeId?: string;
-          positionX?: number;
-          positionY?: number;
-          width?: number;
-          height?: number;
-        }>),
-      ];
-      const idx = configs.findIndex((c) => c._runtimeId === id);
-      if (idx >= 0) {
-        configs[idx] = { ...configs[idx], positionX: bounds.x, positionY: bounds.y, width: bounds.width, height: bounds.height };
-        updateWindowSetting('windowConfigs', configs as any);
-      }
+      // `id` is the runtime handle; the config is keyed by its own stable id.
+      const configId = configIdForRuntimeId(savedWindowConfigsRef.current, id);
+      if (!configId) return;
+      dispatch(upsertWindowConfig({ id: configId, positionX: bounds.x, positionY: bounds.y, width: bounds.width, height: bounds.height }));
     });
     return cleanup || undefined;
-  }, []);
+  }, [dispatch]);
 };

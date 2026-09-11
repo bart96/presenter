@@ -283,7 +283,7 @@ export async function readAnnotationLayer(pdfBytes: ArrayBuffer, musician: strin
 
     // Try the given name first (new format: plain name)
     const metadataKey = `PresenterAnnotations_${musician.replace(/\W/g, '_')}`;
-    let appDict = (pieceInfo as any).get(PDFName.of(metadataKey)) as PDFDict | undefined;
+    const appDict = (pieceInfo as any).get(PDFName.of(metadataKey)) as PDFDict | undefined;
 
     if (!appDict) return [];
     const privateData = (appDict as any).get(PDFName.of('Private'));

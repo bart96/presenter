@@ -18,6 +18,21 @@ export type ShowGroup = {
   collapsed?: boolean;
 };
 
+/**
+ * A stage-monitor action fired when the item it sits on goes live.
+ *
+ * These live on the item itself, inside the show's `order` JSON, rather than in a table
+ * keyed by position: `ShowItem` has no stable id, so anything index-keyed would point at
+ * the wrong item the first time the order is rearranged.
+ */
+export type StageTrigger = {
+  /** `stage_layers.id`. A trigger naming a layer that no longer exists is ignored. */
+  layerId: number;
+  action: 'start' | 'next' | 'reset' | 'hide' | 'show';
+  /** For `start`: jump to this cue instead of the first one. */
+  cueId?: string;
+};
+
 export type ShowItem = {
   type: ShowItemType;
   /** Id of the group this item belongs to (see Show.groups). Items without one fall into Default. */
@@ -46,6 +61,8 @@ export type ShowItem = {
   bibleFormattedSegments?: { start: number; end: number; bold: boolean }[];
   label?: string;
   styleId?: number;
+  /** Stage-monitor actions fired when this item becomes active. */
+  stageTriggers?: StageTrigger[];
   /** Per-window style override: keys are window names, values are style IDs (or null = no style). */
   itemStyleByWindow?: Record<string, number | null>;
 };
@@ -60,6 +77,11 @@ export type Show = {
   /** Linked ChurchTools event id (for agenda sync), if any. */
   eventId?: number | null;
   eventName?: string | null;
+  /**
+   * Bands playing this show. Several are allowed — two bands sharing a service is normal —
+   * and they are only rewritten when the save actually carries them (see saveShow).
+   */
+  bandIds?: number[];
 };
 
 export type ShowsResponse = {
@@ -97,6 +119,11 @@ const showsApi = presenterApi.injectEndpoints({
         styleId?: number | null;
         eventId?: number | null;
         eventName?: string | null;
+        /**
+         * Omit to leave the show's bands as they are — an order-only auto-save must not
+         * strip them. Send an empty array to clear them.
+         */
+        bandIds?: number[];
       }
     >({
       query: (body) => ({ url: 'rest/Shows', method: 'POST', body }),
